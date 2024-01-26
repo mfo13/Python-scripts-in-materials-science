@@ -51,7 +51,7 @@ class Wave:
         self.f = psi_R(self.x)                      # Calculates the radial function along the line
         self.wylim = 1.05*max(self.f.real)          # Define the y limit for the radial function
         self.dylim = 1.05*max(self.dens())          # Define the y limit for the denstiy plot
-        
+                
     def dens(self):
         """
         Calculates the radial probability density
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     ax.legend() # add the legend
     
     ax.set_ylim([-wave_sim.wylim,wave_sim.wylim])   # set y limits for the waves
-    ax.set_ylabel(f'$\psi\:(real\:and\:imag)$')     # set y label (left)
+    ax.set_ylabel(f'$R\,_n\,_l\:(real\:and\:imag)$')# set y label (left)
     ax.set_xlim([0,wave_sim.xlim])                  # set x limits
     ax.set_xlabel(f'$r\:(a_0)$')                    # set x label
        
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     ax2.set_ylim([-wave_sim.dylim,wave_sim.dylim])                  # set y limits for density plot
     ax2.tick_params(axis='y', labelcolor='green')                   # set y tick label color
-    ax2.set_ylabel(f'$\|\psi\|^2\,r^2$', color='green')             # set y label
+    ax2.set_ylabel(f'$\|R\,_n\,_l\|^2\,r^2$', color='green')        # set y label
 
     # define the animation
     ani = animation.FuncAnimation(fig, wave_sim.animate, interval=10, blit=True, save_count=1000)

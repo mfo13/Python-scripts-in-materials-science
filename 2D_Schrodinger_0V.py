@@ -64,16 +64,21 @@ class AnimatedPcolormesh:
         self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.6)/2))
         # Low energy (momentum) particle
         #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.6)/2))
-
+        
         # Bouncing particle (comment the grid barrier bellow as well as in the update function)
         # call the script with --ybc d
         #self.m = np.exp(-((self.Y)**2+(self.X+0.5)**2)**2/0.1**2)*np.exp(1j*50*((self.X+0.5)/2-self.Y))
 
+        # standing wave (deactivate the grid barrier)
+        #self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
+        #---------------------------------------------------------------------------
+
+        self.vi = []                    # positions that will be set to zero for barriers                                                     
+        self.vj = []
+
         # Grid barrier
         # we create here 3 round barriers of our diffraction grid
         # we store the positions of the matrix to make the code faster
-        self.vi = []                                                      
-        self.vj = []
         for i in range(self.X.shape[0]):
             for j in range(self.X.shape[1]):
                 if np.sqrt((self.X[i,j])**2+(self.Y[i,j])**2) < 0.1:
@@ -85,11 +90,11 @@ class AnimatedPcolormesh:
                 if np.sqrt((self.X[i,j])**2+(self.Y[i,j]+0.35)**2) < 0.1:
                     self.vi.append(i)
                     self.vj.append(j)
-        # now we force such positions to be zero (Dirichlet boundary)
+
+        # we force all selected positions to be zero (Dirichlet boundary)
         for n in range(len(self.vi)):
             self.m[self.vi[n],self.vj[n]] = 0
 
-      
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
         self.fig.suptitle('2D Schrodinger\'s equation simulation')                      # figure title
 
@@ -114,8 +119,8 @@ class AnimatedPcolormesh:
         self.secy = self.ax[0].secondary_yaxis('right') # secondary y axis for plot 1
         self.secx.set_xticks([])                        # erase ticks of secondary axis
         self.secy.set_yticks([])
-        self.ylabel = None                                              # label for y bondary condition
-        self.xlabel = None                                              # label for x bondary condition
+        self.ylabel = 'Dirichlet'                                              # label for y bondary condition
+        self.xlabel = 'Dirichlet'                                              # label for x bondary condition
                         
         self.dx = self.dy = 1                                  # grid spacing
         self.dt = self.dx**2                                   # time step size
@@ -125,7 +130,7 @@ class AnimatedPcolormesh:
         Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                                # upper/lower diagonals of lambda matrix for implicit terms
         self.Lx =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)           # lambda tridiagonal matrix for x direction for implicit terms
         self.Ly =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)           # lambda tridiagonal matrix for y direction for implicit terms
-        
+
         Rdiag = np.full(len(self.m), np.sqrt(1-2*self.lamb))                           # main diagonal of lambda matrix for explicit terms
         Roffdiag = np.full(len(self.m)-1, self.lamb/2)                                 # upper/lower diagonals of lambda matrix for explicit terms
         self.Rx =  np.diag(Roffdiag,-1)+np.diag(Rdiag,0)+np.diag(Roffdiag,1)           # lambda tridiagonal matrix of explicit terms for x direction
@@ -137,59 +142,37 @@ class AnimatedPcolormesh:
         self.ax[0].set_ylabel(self.xlabel, loc='bottom', fontsize=8)    # set y label bc for plot 0
         self.secx.set_xlabel(self.ylabel, loc='left', fontsize=8)       # set x secondary label for plot 0
         self.secy.set_ylabel(self.xlabel, loc='top', fontsize=8)        # set y secondary label for plot 0
-           
+   
     def bc(self):
         '''
-        Function to apply the chosen boundary conditions
+        Function to apply the chosen boundary conditions different from Dirichlet
         '''
-        # Dirichlet
-        if self.args.xbc == 'd':
-            self.Lx[0,0] = 1
-            self.Lx[0,1] = 0
-            self.Rx[0,0] = 1
-            self.Rx[0,1] = 0
-            self.Lx[len(self.m)-1,len(self.m)-1] = 1
-            self.Lx[len(self.m)-1,len(self.m)-2] = 0
-            self.Rx[len(self.m)-1,len(self.m)-1] = 1
-            self.Rx[len(self.m)-1,len(self.m)-2] = 0
-            self.xlabel = 'Dirichlet boundary'
-        if self.args.ybc == 'd':
-            self.Ly[0,0] = 1
-            self.Ly[0,1] = 0
-            self.Ry[0,0] = 1
-            self.Ry[0,1] = 0
-            self.Ly[len(self.m)-1,len(self.m)-1] = 1
-            self.Ly[len(self.m)-1,len(self.m)-2] = 0
-            self.Ry[len(self.m)-1,len(self.m)-1] = 1
-            self.Ry[len(self.m)-1,len(self.m)-2] = 0
-            self.ylabel = 'Dirichlet boundary'
-           
         # Neumann
         if self.args.xbc == 'n':
-            self.Lx[0,1] = -self.lamb
-            self.Rx[0,1] = self.lamb
-            self.Lx[len(self.m)-1,len(self.m)-2] = -self.lamb
-            self.Rx[len(self.m)-1,len(self.m)-2] = self.lamb
+            self.Lx[0,1] *= 2
+            self.Rx[0,1] *= 2
+            self.Lx[len(self.m)-1,len(self.m)-2] *= 2
+            self.Rx[len(self.m)-1,len(self.m)-2] *= 2
             self.xlabel = 'Neumann boundary'
         if self.args.ybc == 'n':
-            self.Ly[0,1] = -self.lamb
-            self.Ry[0,1] = self.lamb
-            self.Ly[len(self.m)-1,len(self.m)-2] = -self.lamb
-            self.Ry[len(self.m)-1,len(self.m)-2] = self.lamb
+            self.Ly[0,1] *= 2
+            self.Ry[0,1] *= 2
+            self.Ly[len(self.m)-1,len(self.m)-2] *= 2
+            self.Ry[len(self.m)-1,len(self.m)-2] *= 2
             self.ylabel = 'Neumann boundary'
         
         # Periodic
         if self.args.xbc == 'p':
-            self.Lx[0,len(self.m)-2] = -self.lamb/2
-            self.Lx[len(self.m)-1,1] = -self.lamb/2
-            self.Rx[0,len(self.m)-2] = self.lamb/2
-            self.Rx[len(self.m)-1,1] = self.lamb/2
+            self.Lx[0,len(self.m)-1] = -self.lamb/2
+            self.Lx[len(self.m)-1,0] = -self.lamb/2
+            self.Rx[0,len(self.m)-1] = self.lamb/2
+            self.Rx[len(self.m)-1,0] = self.lamb/2
             self.xlabel = 'Periodic boundary'
         if self.args.ybc == 'p':
-            self.Ly[0,len(self.m)-2] = -self.lamb/2
-            self.Ly[len(self.m)-1,1] = -self.lamb/2
-            self.Ry[0,len(self.m)-2] = self.lamb/2
-            self.Ry[len(self.m)-1,1] = self.lamb/2
+            self.Ly[0,len(self.m)-1] = -self.lamb/2
+            self.Ly[len(self.m)-1,0] = -self.lamb/2
+            self.Ry[0,len(self.m)-1] = self.lamb/2
+            self.Ry[len(self.m)-1,0] = self.lamb/2
             self.ylabel = 'Periodic boundary'
     
     def update(self, frame):
@@ -208,8 +191,7 @@ class AnimatedPcolormesh:
         # Ynew is the new wave matrix                                                 
         self.m = np.linalg.inv(self.Ly)@(self.Ry@m_temp@self.Rx)@np.linalg.inv(self.Lx)
 
-        # Grid barrier
-        # we need to reimpose our grid (Dirichlet condition)
+        # we reimpose the barrier positions (Dirichlet condition)
         for n in range(len(self.vi)):
             self.m[self.vi[n],self.vj[n]] = 0
                                        
@@ -255,8 +237,8 @@ def parse_arguments():
     """
     chois = ['d','n','p']
     parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation')
-    parser.add_argument('--ybc', type=str.lower, default='p', nargs='?', metavar='Y direction Boundary Conditions', choices=chois, help='Y direction Boundary Conditions')
-    parser.add_argument('--xbc', type=str.lower, default='p', nargs='?', metavar='X direction Boundary Conditions', choices=chois, help='X direction Boundary Conditions')
+    parser.add_argument('--ybc', type=str.lower, default='d', nargs='?', metavar='Y direction Boundary Conditions', choices=chois, help='Y direction Boundary Conditions')
+    parser.add_argument('--xbc', type=str.lower, default='d', nargs='?', metavar='X direction Boundary Conditions', choices=chois, help='X direction Boundary Conditions')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

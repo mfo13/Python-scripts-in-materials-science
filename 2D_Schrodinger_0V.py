@@ -22,10 +22,12 @@ Packages needed:
 argparse, matplotlib, numpy
 
 Usage:
-$ python 2D_wave.py --xbc <arg1> --ybc <arg2>
+$ python 2D_wave.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4>
 Optional arguments:
-- <arg1> left and right boundary conditions, a value among 'd', 'n', 'p' (default: p)
-- <arg2> up and bottom boundary conditions, same as above
+- <arg1> left boundary conditions, a value among 'd', 'n', 'p' (default: d)
+- <arg2> right boundary conditions, same as above
+- <arg3> upper boundary conditions, same as above
+- <arg4> bottom boundary conditions, same as above
 - Use 'python 2D_Schrodinger_0V.py -h' for help.
 
 p.s. d-Dirichlet, n-Neumann, p-periodic
@@ -119,68 +121,74 @@ class AnimatedPcolormesh:
         self.secy = self.ax[0].secondary_yaxis('right') # secondary y axis for plot 1
         self.secx.set_xticks([])                        # erase ticks of secondary axis
         self.secy.set_yticks([])
-        self.ylabel = 'Dirichlet'                                              # label for y bondary condition
-        self.xlabel = 'Dirichlet'                                              # label for x bondary condition
+        self.lbclabel = 'Dirichlet boundary'            # label for left bondary condition
+        self.rbclabel = 'Dirichlet boundary'            # label for right bondary condition
+        self.ubclabel = 'Dirichlet boundary'            # label for upper bondary condition
+        self.bbclabel = 'Dirichlet boundary'            # label for bottom bondary condition
                         
         self.dx = self.dy = 1                                  # grid spacing
         self.dt = self.dx**2                                   # time step size
         self.lamb = 1j*self.dt/self.dx**2                      # lambda
         
-        Ldiag = np.full(len(self.m), np.sqrt(1+2*self.lamb))                           # main diagonal of lambda matrix for implicit terms
-        Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                                # upper/lower diagonals of lambda matrix for implicit terms
-        self.Lx =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)           # lambda tridiagonal matrix for x direction for implicit terms
-        self.Ly =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)           # lambda tridiagonal matrix for y direction for implicit terms
+        Ldiag = np.full(len(self.m), np.sqrt(1+2*self.lamb))                  # main diagonal of lambda matrix for implicit terms
+        Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                       # upper/lower diagonals of lambda matrix for implicit terms
+        self.Lx =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)  # lambda tridiagonal matrix for x direction for implicit terms
+        self.Ly =  np.diag(Loffdiag,-1)+np.diag(Ldiag,0)+np.diag(Loffdiag,1)  # lambda tridiagonal matrix for y direction for implicit terms
 
-        Rdiag = np.full(len(self.m), np.sqrt(1-2*self.lamb))                           # main diagonal of lambda matrix for explicit terms
-        Roffdiag = np.full(len(self.m)-1, self.lamb/2)                                 # upper/lower diagonals of lambda matrix for explicit terms
-        self.Rx =  np.diag(Roffdiag,-1)+np.diag(Rdiag,0)+np.diag(Roffdiag,1)           # lambda tridiagonal matrix of explicit terms for x direction
-        self.Ry =  np.diag(Roffdiag,-1)+np.diag(Rdiag,0)+np.diag(Roffdiag,1)           # lambda tridiagonal matrix of explicit terms for y direction
+        Rdiag = np.full(len(self.m), np.sqrt(1-2*self.lamb))                  # main diagonal of lambda matrix for explicit terms
+        Roffdiag = np.full(len(self.m)-1, self.lamb/2)                        # upper/lower diagonals of lambda matrix for explicit terms
+        self.Rx =  np.diag(Roffdiag,-1)+np.diag(Rdiag,0)+np.diag(Roffdiag,1)  # lambda tridiagonal matrix of explicit terms for x direction
+        self.Ry =  np.diag(Roffdiag,-1)+np.diag(Rdiag,0)+np.diag(Roffdiag,1)  # lambda tridiagonal matrix of explicit terms for y direction
         
         self.bc()       # apply the boundary conditions
             
-        self.ax[0].set_xlabel(self.ylabel, loc='right', fontsize=8)     # set x label bc for plot 0
-        self.ax[0].set_ylabel(self.xlabel, loc='bottom', fontsize=8)    # set y label bc for plot 0
-        self.secx.set_xlabel(self.ylabel, loc='left', fontsize=8)       # set x secondary label for plot 0
-        self.secy.set_ylabel(self.xlabel, loc='top', fontsize=8)        # set y secondary label for plot 0
+        self.ax[0].set_xlabel(self.bbclabel, loc='right', fontsize=8)     # set x label bc for plot 0
+        self.ax[0].set_ylabel(self.lbclabel, loc='bottom', fontsize=8)    # set y label bc for plot 0
+        self.secx.set_xlabel(self.ubclabel, loc='left', fontsize=8)       # set x secondary label for plot 0
+        self.secy.set_ylabel(self.rbclabel, loc='top', fontsize=8)        # set y secondary label for plot 0
    
     def bc(self):
         '''
         Function to apply the chosen boundary conditions different from Dirichlet
         '''
         # Neumann
-        if self.args.xbc == 'n':
+        if self.args.lbc == 'n':
             self.Lx[0,1] *= 2
             self.Rx[0,1] *= 2
+            self.lbclabel = 'Neumann boundary'
+        if self.args.rbc == 'n':
             self.Lx[len(self.m)-1,len(self.m)-2] *= 2
             self.Rx[len(self.m)-1,len(self.m)-2] *= 2
-            self.xlabel = 'Neumann boundary'
-        if self.args.ybc == 'n':
+            self.rbclabel = 'Neumann boundary'
+        if self.args.ubc == 'n':
             self.Ly[0,1] *= 2
             self.Ry[0,1] *= 2
+            self.ubclabel = 'Neumann boundary'
+        if self.args.bbc == 'n':
             self.Ly[len(self.m)-1,len(self.m)-2] *= 2
             self.Ry[len(self.m)-1,len(self.m)-2] *= 2
-            self.ylabel = 'Neumann boundary'
+            self.bbclabel = 'Neumann boundary'
         
         # Periodic
-        if self.args.xbc == 'p':
+        if self.args.lbc == 'p' or self.args.rbc == 'p':
             self.Lx[0,len(self.m)-1] = -self.lamb/2
             self.Lx[len(self.m)-1,0] = -self.lamb/2
             self.Rx[0,len(self.m)-1] = self.lamb/2
             self.Rx[len(self.m)-1,0] = self.lamb/2
-            self.xlabel = 'Periodic boundary'
-        if self.args.ybc == 'p':
+            self.lbclabel = 'Periodic boundary'
+            self.rbclabel = 'Periodic boundary'
+        if self.args.ubc == 'p' or self.args.bbc == 'p':
             self.Ly[0,len(self.m)-1] = -self.lamb/2
             self.Ly[len(self.m)-1,0] = -self.lamb/2
             self.Ry[0,len(self.m)-1] = self.lamb/2
             self.Ry[len(self.m)-1,0] = self.lamb/2
-            self.ylabel = 'Periodic boundary'
+            self.ubclabel = 'Periodic boundary'
+            self.bbclabel = 'Periodic boundary'
     
     def update(self, frame):
         '''
         Function to solve the Schrodinger's equation, update the matrix and the colormeshes
         '''
-
-        m_temp = self.m.copy()                          # copy the initial matrix into csc sparse format
 
         # solve the matricial equation, in this case, 
         # Ly.Ynew.Lx = Ry.Yold.Rx
@@ -189,7 +197,7 @@ class AnimatedPcolormesh:
         # where Ly and Lx are the lambda matrices for implicit terms of x and y directions,
         # Ry and Rx are the matrices for explicit terms, Yold is the old wave matrix and 
         # Ynew is the new wave matrix                                                 
-        self.m = np.linalg.inv(self.Ly)@(self.Ry@m_temp@self.Rx)@np.linalg.inv(self.Lx)
+        self.m = np.linalg.inv(self.Ly)@(self.Ry@self.m@self.Rx)@np.linalg.inv(self.Lx)
 
         # we reimpose the barrier positions (Dirichlet condition)
         for n in range(len(self.vi)):
@@ -237,8 +245,10 @@ def parse_arguments():
     """
     chois = ['d','n','p']
     parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation')
-    parser.add_argument('--ybc', type=str.lower, default='d', nargs='?', metavar='Y direction Boundary Conditions', choices=chois, help='Y direction Boundary Conditions')
-    parser.add_argument('--xbc', type=str.lower, default='d', nargs='?', metavar='X direction Boundary Conditions', choices=chois, help='X direction Boundary Conditions')
+    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=chois, help='Left Boundary Condition')
+    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=chois, help='Right Boundary Condition')
+    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='Upper Boundary Condition', choices=chois, help='Upper Boundary Condition')
+    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='Bottom Boundary Condition', choices=chois, help='Bottom Boundary Condition')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

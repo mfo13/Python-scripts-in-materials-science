@@ -68,45 +68,76 @@ class AnimatedPcolormesh:
         self.args = args                                                     # gets the arguments passed by the user        
         self.X, self.Y = np.meshgrid(side_points, side_points)               # creates the 2D coordinate grid according to the number of points in x and y
         self.m = np.ndarray((len(self.X), len(self.Y)), dtype='complex')     # creates the 2D matrix of complex values for the wave function
-        self.V = np.zeros(self.m.shape)                                      # we create the potential matrix full of zeros
+        self.V = np.zeros(self.m.shape, dtype='complex')                     # we create the potential matrix full of zeros
 
-        self.dx = self.dy = 1                                  # grid spacing
-        self.dt = self.dx**2                                   # time step size
-        self.lamb = 1j*self.dt/2/self.dx**2                    # lambda 
-        self.nu = 1j*self.dt/2                                 # nu
+        self.dx = 2/len(self.X)                                 # grid spacing
+        self.dt = self.dx**2                                    # time step size
+        self.lamb = 1j*self.dt/2/self.dx**2                     # lambda 
+        self.nu = 1j*self.dt/2                                  # nu
 
         # Iinitial wave function ('particle' size and momentum), change as you want
         #---------------------------------------------------------------------------
-        
         # It is a Gaussian pulse (first part) together with some momentum (second part)
         # high energy particle
-        self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.5)/2))
+        self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.6)/2))
         # low energy particle
         #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.5)/2))
 
-        # standing wave (deactivate the potential matrix)
-        #self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
-        #---------------------------------------------------------------------------
-
-        # Potential matrix; fill it as you want
+        # Diffraction grid fill it as you want
         #---------------------------------------
         # we create here 3 round "transparent" potential wells of our diffraction grit
         for i in range(self.X.shape[0]):
             for j in range(self.X.shape[1]):
                 if np.sqrt((self.X[i,j])**2+(self.Y[i,j])**2) < 0.1:
-                    self.V[i,j] = 0.1
+                    self.V[i,j] = 1e3
                 if np.sqrt((self.X[i,j])**2+(self.Y[i,j]-1/3)**2) < 0.1:
-                    self.V[i,j] = 0.1
+                    self.V[i,j] = 1e3
                 if np.sqrt((self.X[i,j])**2+(self.Y[i,j]+1/3)**2) < 0.1:
-                    self.V[i,j] = 0.1
-       
+                    self.V[i,j] = 1e3
+
+        # absorbing potential layers
+        cut = 0.9
+        mult = 2e5
+        power = 2
+        for i in range(self.X.shape[0]):
+            for j in range(self.X.shape[1]):
+                # left
+                if self.X[i,j] < -cut:
+                    sigma = (-self.X[i,j]-cut)**power
+                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                # right
+                if self.X[i,j] > cut:
+                    sigma = (self.X[i,j]-cut)**power
+                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                # bottom
+                if self.Y[i,j] < -cut:
+                    sigma = (-self.Y[i,j]-cut)**power
+                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                # up
+                if self.Y[i,j] > cut:
+                    sigma = (self.Y[i,j]-cut)**power
+                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+
+        # # parabolic well
+        # raio = np.sqrt((self.X)**2+(self.Y)**2)-0.5        
+        # self.m = np.exp(-(raio**2/0.1**2))
+        # for i in range(len(self.m)):
+        #     for j in range(len(self.m)):
+        #         self.V[i,j] = 1000*np.sqrt(self.X[i,j]**2+self.Y[i,j]**2)**2
+
+        # # standing waves (deactivate the potential matrix)
+        # self.m = np.exp(1j*self.X*np.pi/2).real*np.exp(1j*self.Y*np.pi/2).real
+        # self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
+        # self.m = np.exp(1j*self.X*3/2*np.pi).real*np.exp(1j*self.Y*3/2*np.pi).real
+        #---------------------------------------------------------------------------
+
         # Figure and plot setups
         #-----------------------
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
         self.fig.suptitle('2D Schrodinger\'s equation simulation')                      # figure title
 
         self.pcmr = self.ax[0].pcolormesh(self.X, self.Y, self.m.real, vmin=-1, vmax=1 , cmap='twilight')   # colormesh of the real wave part in plot area 0
-
+        
         colors1 = plt.cm.bone_r(np.linspace(0., 1, 128))                            # we take half of the inverted 'bone' colormap
         colors2 = plt.cm.pink(np.linspace(0, 1, 128))                               # we take half of the 'pink' colormap
         colors = np.vstack((colors1, colors2))                                      # we combine the previous half colormaps into one
@@ -114,7 +145,7 @@ class AnimatedPcolormesh:
 
         self.pcmi = self.ax[1].pcolormesh(self.X, self.Y, self.m.real, vmin=-1, vmax=1, cmap=mycmap)                            # colormesh of the imaginary part of the wave in plot area 1
         self.pcmd = self.ax[2].pcolormesh(self.X, self.Y, (np.conjugate(self.m)*self.m).real, vmin=0, vmax=1, cmap='viridis')   # colormesh of the probability density in plot area 2
-
+        
         for i in range(len(self.ax)):   # we erase all ticks of all plots
             self.ax[i].set_xticks([])
             self.ax[i].set_yticks([])
@@ -295,6 +326,6 @@ if __name__ == "__main__":
     
     args = parse_arguments()                                      # gets the command line arguments
     
-    side_points = np.linspace(-1,1,200)                           # number of grid points in x an y
+    side_points = np.linspace(-1,1,150)                           # number of grid points in x an y
     animated_plot = AnimatedPcolormesh(side_points, args)         # creates the animation instance
     animated_plot.animate()                                       # start the animation

@@ -71,31 +71,43 @@ class AnimatedPcolormesh:
         self.V = np.zeros(self.m.shape, dtype='complex')                     # we create the potential matrix full of zeros
 
         self.dx = 2/len(self.X)                                 # grid spacing
-        self.dt = self.dx**2                                    # time step size
+        self.dt = self.dx**2*2                                  # time step size
         self.lamb = 1j*self.dt/2/self.dx**2                     # lambda 
-        self.nu = 1j*self.dt/2                                  # nu
+        self.nu = 1j*self.dt                                    # nu
 
-        # Iinitial wave function ('particle' size and momentum), change as you want
+        # Initial wave function ('particle' size and momentum), change as you want
         #---------------------------------------------------------------------------
         # It is a Gaussian pulse (first part) together with some momentum (second part)
         # high energy particle
         self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.6)/2))
         # low energy particle
-        #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.5)/2))
+        #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*15*((self.X+0.6)/2))
 
         # Diffraction grid fill it as you want
         #---------------------------------------
-        # we create here 3 round "transparent" potential wells of our diffraction grit
+        # we create here 5 round "transparent" potential wells of our diffraction grid
+        # along 2 parallel walls
+        gridpot = 5e2
+        radius = 0.1
         for i in range(self.X.shape[0]):
             for j in range(self.X.shape[1]):
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j])**2) < 0.1:
-                    self.V[i,j] = 1e3
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j]-1/3)**2) < 0.1:
-                    self.V[i,j] = 1e3
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j]+1/3)**2) < 0.1:
-                    self.V[i,j] = 1e3
+                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j])**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j]-1/3)**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j]+1/3)**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]+1/6)**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]-1/6)**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]+1/2)**2) < radius:
+                    self.V[i,j] = gridpot
+                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]-1/2)**2) < radius:
+                    self.V[i,j] = gridpot
 
         # absorbing potential layers
+        # to partially cancel the waves at the simulation box bondaries
         cut = 0.9
         mult = 2e5
         power = 2
@@ -106,9 +118,9 @@ class AnimatedPcolormesh:
                     sigma = (-self.X[i,j]-cut)**power
                     self.V[i,j] = mult*(1-np.exp(1j*sigma))
                 # right
-                if self.X[i,j] > cut:
-                    sigma = (self.X[i,j]-cut)**power
-                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                # if self.X[i,j] > cut:
+                #     sigma = (self.X[i,j]-cut)**power
+                #     self.V[i,j] = mult*(1-np.exp(1j*sigma))
                 # bottom
                 if self.Y[i,j] < -cut:
                     sigma = (-self.Y[i,j]-cut)**power
@@ -300,10 +312,10 @@ class AnimatedPcolormesh:
         '''
         Function to animate the plots
         '''
-        animation = FuncAnimation(self.fig, self.update, frames=None, interval=1, blit=True, save_count=750)
+        animation = FuncAnimation(self.fig, self.update, frames=None, interval=1, blit=True, save_count=300)
 
         # uncomment this line if you want to save a mp4 movie
-        #animation.save('2D_Schrodinger_high.mp4', fps=30)
+        #animation.save('Snell_45.mp4', fps=60)
 
         plt.show()      # show the figure
 

@@ -27,7 +27,7 @@ Usage:
 $ python 1D_diffusion.py
 - Instructions are provided in the first plot
 
-Dates: December/2023, January/2024
+Date: January, 2024
 Version: 2.0
 
 Note:
@@ -124,7 +124,7 @@ class PathInteractor:
         self.ax2 = mesh                                     # pass the pcolormesh to an internal class variable
         self.vertices = self.pathpatch.get_path().vertices  # internal variable for the path vertices
         self.vertices = self.vertices[1:-1]                     # trim out the path borders (they are used only for the patch)
-        shape = mesh.get_coordinates().shape                    # get colormesh grid matrix shape
+        shape = colormesh.get_coordinates().shape               # get colormesh grid matrix shape
         self.mat = mesh.get_array().reshape(shape[2],shape[1])  # reshape the colormesh array values to an internal class variable
         
         x, y = zip(*self.vertices)  # gets x and y coordinates of the pathpatch and arrange them in vectors
@@ -290,34 +290,31 @@ class PathInteractor:
         Notice how we can avoid nested for loops by using numpy matrix functions.
         To understand the matricial solution refer to the lecture documentation.
         """
-        m0 = m[:,1].copy()                  # make a copy of the initial vector of values
-        D = 1e-5                            # diffusion coefficient
-        dx = 2/(len(m)-1)                   # mesh spacing
-        dt = self.timestepfactor            # time step size 
-        lamb = D*dt/dx**2                   # lambda of the Crank-Nicolson scheme 
+        m0 = m[:,1].copy()                  # make a copy (column) of the initial vector of values
+        dt = 1/1000*self.timestepfactor     # time step size which is also the lambda of the C-N scheme 
        
-        Lidiag = np.full(len(m), 1+lamb)                                      # main diagonal of lambda matrix for implicit terms
-        Lioffdiag = np.full(len(m)-1, -lamb/2)                                # upper/lower diagonals of lambda matrix for implicit terms
-        Li =  np.diag(Lioffdiag,-1)+np.diag(Lidiag,0)+np.diag(Lioffdiag,1)    # lambda tridiagonal matrix of implicit therms
+        Lidiag = np.full(len(m), 1+dt)                                      # main diagonal of lambda matrix for implicit terms
+        Lioffdiag = np.full(len(m)-1, -dt/2)                                # off diagonals of lambda matrix for implicit terms
+        Li =  np.diag(Lioffdiag,-1)+np.diag(Lidiag,0)+np.diag(Lioffdiag,1)  # lambda tridiagonal matrix for implicit terms
         
-        Lediag = np.full(len(m), 1-lamb)                                      # main diagonal of lambda matrix for explicit terms
-        Leoffdiag = np.full(len(m)-1, lamb/2)                                 # upper/lower diagonals of lambda matrix for explicit terms
-        Le =  np.diag(Leoffdiag,-1)+np.diag(Lediag,0)+np.diag(Leoffdiag,1)    # lambda tridiagonal matrix of explicit terms
+        Lediag = np.full(len(m), 1-dt)                                      # main diagonal of lambda matrix for explicit terms
+        Leoffdiag = np.full(len(m)-1, dt/2)                                 # off diagonals of lambda matrix for explicit terms
+        Le =  np.diag(Leoffdiag,-1)+np.diag(Lediag,0)+np.diag(Leoffdiag,1)  # lambda tridiagonal matrix for explicit terms
 
         # Apply the boundary condition
         if self.bc == 'Dirichlet':
-            Li[0,0] = Li[len(m)-1,len(m)-1] = 1                 # main diagonal extremes
+            Li[0,0] = Li[len(m)-1,len(m)-1] = 1     # main diagonal extremes
             Le[0,0] = Le[len(m)-1,len(m)-1] = 1 
-            Li[0,1] = Li[len(m)-1,len(m)-2] = 0                 # upper/lower diagonal extremes
+            Li[0,1] = Li[len(m)-1,len(m)-2] = 0     # off diagonal extremes
             Le[0,1] = Le[len(m)-1,len(m)-2] = 0
         if self.bc == 'Neumann': 
-            Li[0,1] = Li[len(m)-1,len(m)-2] = -lamb             # upper/lower diagonal extremes
-            Le[0,1] = Le[len(m)-1,len(m)-2] = lamb
+            Li[0,1] = Li[len(m)-1,len(m)-2] = -dt   # off diagonal extremes
+            Le[0,1] = Le[len(m)-1,len(m)-2] = dt
         if self.bc == 'Periodic': 
-            Li[0,len(m)-2,] = Li[len(m)-1,1] = -lamb/2          # upper/lower anti-diagonal extremes
-            Le[0,len(m)-2,] = Le[len(m)-1,1] = lamb/2
+            Li[0,len(m)-2,] = Li[len(m)-1,1] = -dt/2 # off anti-diagonal extremes
+            Le[0,len(m)-2,] = Le[len(m)-1,1] = dt/2
 
-        m[:,1] = np.matmul(np.linalg.inv(Li),np.matmul(Le,m0))  # solves the matricial equation
+        m[:,1] = np.matmul(np.linalg.inv(Li),np.matmul(Le,m0))  # solves the matricial equation: m = Li^(-1).Le.m0
 
         return m                                                # returns the calculated matrix
 

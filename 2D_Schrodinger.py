@@ -315,7 +315,7 @@ class AnimatedPcolormesh:
         animation = FuncAnimation(self.fig, self.update, frames=None, interval=1, blit=True, save_count=300)
 
         # uncomment this line if you want to save a mp4 movie
-        #animation.save('Snell_45.mp4', fps=60)
+        #animation.save('2D_Shcrodinger.mp4', fps=30)
 
         plt.show()      # show the figure
 

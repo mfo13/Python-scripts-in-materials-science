@@ -67,11 +67,11 @@ class AnimatedPcolormesh:
         # Low energy (momentum) particle
         #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.6)/2))
         
-        # Bouncing particle (comment the grid barrier bellow as well as in the update function)
+        # Bouncing particle (comment the grid barrier bellow)
         # call the script with --ybc d
         #self.m = np.exp(-((self.Y)**2+(self.X+0.5)**2)**2/0.1**2)*np.exp(1j*50*((self.X+0.5)/2-self.Y))
 
-        # standing wave (deactivate the grid barrier)
+        # standing wave (comment the grid barrier bellow)
         #self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
         #---------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ class AnimatedPcolormesh:
         self.bbclabel = 'Dirichlet boundary'            # label for bottom bondary condition
                         
         self.dx = self.dy = 1                                  # grid spacing
-        self.dt = self.dx**2                                   # time step size
+        self.dt = self.dx**2*2                                 # time step size
         self.lamb = 1j*self.dt/self.dx**2                      # lambda
         
         Ldiag = np.full(len(self.m), np.sqrt(1+2*self.lamb))                  # main diagonal of lambda matrix for implicit terms

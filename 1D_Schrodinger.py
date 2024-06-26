@@ -62,30 +62,41 @@ class WaveSimulation:
         """
         Set up the simulation parameters and matrices.
         """
-        self.x = np.linspace(-1, 1, 500)                           # number of grid points
-        self.m = np.ndarray(shape=(len(self.x)), dtype='complex')  # grid of complex numbers
+        self.x = np.linspace(-1, 1, 1000)                           # number of grid points
+        self.m = np.ndarray(shape=(len(self.x)), dtype='complex')   # grid of complex numbers
 
         # Initial pulse wave (change as you want)
-        self.m = np.exp(-(self.x+0.6)**2/2/0.1**2)*np.exp(1j*20*(self.x+0.6))            
+        self.m = np.exp(-(self.x+0.6)**2/2/0.1**2)*np.exp(1j*200*((self.x+0.6)/2))
+        #self.m = np.exp(1j*(self.x*2*np.pi/2)).imag            
         
-        self.dx = (max(self.x)-min(self.x))/len(self.x)            # grid spacing
-        self.dt = self.dx**2*10                                    # time step size
-        self.lamb = 1j*self.dt/2/self.dx**2                        # lambda 
-        self.nu = 1j*self.dt/2                                     # nu
+        self.dx = 2/len(self.x)                             # grid spacing
+        self.dt = self.dx**2*10                             # time step size
+        self.lamb = 1j*self.dt/2/self.dx**2                 # lambda 
+        self.nu = 1j*self.dt/2                              # nu
 
-        self.V = np.zeros(len(self.x))                             # potential grid full of zeros  
+        self.V = np.zeros(len(self.x), dtype='complex')     # potential grid full of zeros  
 
-        # potential barrier if chosen
+        # potential barrier bellow, if chosen
+
+        # constant potential layer
         if self.args.bar == 'y':
             self.Ve = 0.3           # left position
-            self.Vr = 0.5           # right position
-            wl = 500                # potential
-            # we fill the V grid with wl between Ve and Vr
+            self.Vr = 0.4         # right position
             for i in range(np.int_((self.Ve+1)*len(self.x)/2),np.int_((self.Vr+1)*len(self.x)/2)):
-                self.V[i] = wl
+                self.V[i] = 1.2e4
+
+        # # absorbing layer
+        if self.args.bar == 'y':
+            self.Ve = 0           # left position
+            self.Vr = 0.3         # right position
+            # we fill the V grid with between Ve and Vr
+            for i in range(np.int_((self.Ve+1)*len(self.x)/2),np.int_((self.Vr+1)*len(self.x)/2)):
+                sigma = (self.x[i]-self.Ve)**2
+                self.V[i] = 1e5*(1-np.exp(1j*sigma))
                 
-        self.Ldiag = np.full(len(self.x),1+self.lamb) + self.nu*self.V                  # main diagonal of L
-        self.Rdiag = np.full(len(self.x),1-self.lamb) - self.nu*self.V                  # main diagonal of R
+    
+        self.Ldiag = np.full(len(self.x),1+self.lamb) + self.nu/2*self.V                # main diagonal of L
+        self.Rdiag = np.full(len(self.x),1-self.lamb) - self.nu/2*self.V                # main diagonal of R
         Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                                 # upper/lower diagonals of L
         self.L =  np.diag(Loffdiag,-1)+np.diag(self.Ldiag,0)+np.diag(Loffdiag,1)        # tridiagonal matrix of L
         Roffdiag = np.full(len(self.m)-1, self.lamb/2)                                  # upper/lower diagonals of lambda matrix for explicit terms
@@ -133,9 +144,8 @@ class WaveSimulation:
         """
         Perform one simulation step.
         """
-        m_temp = self.m                                                       # store the initial values
-        self.m = np.matmul(np.linalg.inv(self.L),np.matmul(self.R,m_temp))  # solves the matricial equation
-        self.m_old = m_temp                                                   # the initial values are now the old ones
+        self.m = np.linalg.solve(self.L, np.matmul(self.R,self.m_old))  # solves the matricial equation
+        self.m_old = self.m                                             # the initial values are now the old ones
 
     def animate(self, frame):
         """
@@ -165,9 +175,9 @@ def parse_arguments():
 # Execute the main code only if this script is run directly, not when imported as a module
 if __name__ == "__main__":
     
-    args = parse_arguments()          # get the command line arguments
+    args = parse_arguments()            # get the command line arguments
 
-    wave_sim = WaveSimulation(args)  # create the simulation object with the input arguments
+    wave_sim = WaveSimulation(args)     # create the simulation object with the input arguments
 
     fig, ax = plt.subplots(1, 2, figsize=(12,4), layout='constrained')  # set up two plot areas
     fig.suptitle('1D Schrodinger\'s Equantion')                         # figure title
@@ -208,4 +218,4 @@ if __name__ == "__main__":
     
     #ani.save('1D_Schrodinger.mp4')    # Uncomment this line if you want to save a mp4 movie
 
-    plt.show()                  # finally shows the plot
+    plt.show()                         # finally shows the plot

@@ -261,6 +261,7 @@ if __name__ == "__main__":
 
     # Set boundary condition and title
     bc = args.boundary_condition
+    if bc not in ['neumann', 'dirichlet', 'periodic']: bc = 'neumann'   # default bc
     titulo = '2D diffusion'
 
     # Create the initial plot

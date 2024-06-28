@@ -22,12 +22,13 @@ Packages needed:
 argparse, matplotlib, numpy, scipy
 
 Usage:
-$ python 2D_Schrodinger.py --lbc <arg1> --rbc <arg2> --ubc <arg1> --bbc <arg2>
+$ python 2D_Schrodinger.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4> --pmf <arg5>
 Optional arguments:
 - <arg1> left boundary condition, a value among 'd', 'n', 'p' (default: d)
 - <arg2> right boundary condition, same as above
 - <arg3> upper boundary condition, same as above
 - <arg4> bottom boundary condition, same as above
+- <arg5> pml activiation, on or off (default: off)
 - Use 'python 2D_Schrodinger.py -h' for help.
 
 p.s. d-Dirichlet, n-Neumann, p-periodic
@@ -106,41 +107,42 @@ class AnimatedPcolormesh:
                 if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]-1/2)**2) < radius:
                     self.V[i,j] = gridpot
 
-        # absorbing potential layers
+        # absorbing layer (PML)
         # to partially cancel the waves at the simulation box bondaries
-        cut = 0.9
-        mult = 2e5
-        power = 2
-        for i in range(self.X.shape[0]):
-            for j in range(self.X.shape[1]):
-                # left
-                if self.X[i,j] < -cut:
-                    sigma = (-self.X[i,j]-cut)**power
-                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                # right
-                # if self.X[i,j] > cut:
-                #     sigma = (self.X[i,j]-cut)**power
-                #     self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                # bottom
-                if self.Y[i,j] < -cut:
-                    sigma = (-self.Y[i,j]-cut)**power
-                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                # up
-                if self.Y[i,j] > cut:
-                    sigma = (self.Y[i,j]-cut)**power
-                    self.V[i,j] = mult*(1-np.exp(1j*sigma))
+        if self.args.pml == 'on':
+            cut = 0.1               # PML thickness
+            mult = 2e5              # magnitude
+            power = 2               # sigma function power
+            for i in range(self.X.shape[0]):
+                for j in range(self.X.shape[1]):
+                    # left
+                    if self.X[i,j] < -(1-cut):
+                        sigma = (-self.X[i,j]-(1-cut))**power
+                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                    # right
+                    if self.X[i,j] > (1-cut):
+                        sigma = (self.X[i,j]-(1-cut))**power
+                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                    # bottom
+                    if self.Y[i,j] < -(1-cut):
+                        sigma = (-self.Y[i,j]-(1-cut))**power
+                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
+                    # up
+                    if self.Y[i,j] > (1-cut):
+                        sigma = (self.Y[i,j]-(1-cut))**power
+                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
 
-        # # parabolic well
-        # raio = np.sqrt((self.X)**2+(self.Y)**2)-0.5        
-        # self.m = np.exp(-(raio**2/0.1**2))
-        # for i in range(len(self.m)):
-        #     for j in range(len(self.m)):
-        #         self.V[i,j] = 1000*np.sqrt(self.X[i,j]**2+self.Y[i,j]**2)**2
+        # parabolic well
+        """ raio = np.sqrt((self.X)**2+(self.Y)**2)-0.5        
+        self.m = np.exp(-(raio**4/0.0001))
+        for i in range(len(self.m)):
+            for j in range(len(self.m)):
+                self.V[i,j] = 1000*np.sqrt(self.X[i,j]**2+self.Y[i,j]**2)**2 """
 
-        # # standing waves (deactivate the potential matrix)
-        # self.m = np.exp(1j*self.X*np.pi/2).real*np.exp(1j*self.Y*np.pi/2).real
-        # self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
-        # self.m = np.exp(1j*self.X*3/2*np.pi).real*np.exp(1j*self.Y*3/2*np.pi).real
+        # standing waves (deactivate the potential matrix)
+        """ self.m = np.exp(1j*self.X*np.pi/2).real*np.exp(1j*self.Y*np.pi/2).real
+        self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
+        self.m = np.exp(1j*self.X*3/2*np.pi).real*np.exp(1j*self.Y*3/2*np.pi).real """
         #---------------------------------------------------------------------------
 
         # Figure and plot setups
@@ -331,6 +333,7 @@ def parse_arguments():
     parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=chois, help='Left Boundary Condition')
     parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='Upper Boundary Condition', choices=chois, help='Upper Boundary Condition')
     parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='Bottom Boundary Condition', choices=chois, help='Bottom Boundary Condition')
+    parser.add_argument('--pml', type=str.lower, default='off', nargs='?', metavar='PML activation', choices=['on','off'], help='PML activation')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

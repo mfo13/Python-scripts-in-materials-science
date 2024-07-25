@@ -1,7 +1,7 @@
 # Manim scripts
 
-https://github.com/user-attachments/assets/df2797bc-8fbe-4c8f-9c0a-1236266ec21b
+https://github.com/user-attachments/assets/7f5bb014-a2d6-443d-9a6c-fa5aca6cccf9
 
-https://github.com/user-attachments/assets/0be158ba-9594-4f85-8607-e4e101ad9a63
+https://github.com/user-attachments/assets/383c721e-e200-4ebc-97a8-f52fad1a3d36
 
-https://github.com/user-attachments/assets/cc4b0fbb-08c1-4161-9f63-86533f4bd2d0
+https://github.com/user-attachments/assets/95517cb6-88e0-4a84-8a87-5d56facc583f

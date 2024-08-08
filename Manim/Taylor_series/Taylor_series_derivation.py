@@ -1049,10 +1049,10 @@ class Taylor_series_derivation(Scene):
         self.wait(4)
 
         if lang=="eng":
-            eq15 = MathTex("sin(x)","=","\\frac{sin(0)}{0!}(x-0)^0","+","\\frac{cos(0)}{1!}(x-0)^1","+","\\frac{-sin(a)}{2!}(x-a)^2").move_to(eq12, aligned_edge=LEFT)
+            eq15 = MathTex("sin(x)","=","\\frac{sin(0)}{0!}(x-0)^0","+","\\frac{cos(0)}{1!}(x-0)^1","+","\\frac{-sin(0)}{2!}(x-0)^2").move_to(eq12, aligned_edge=LEFT)
             eq16 = MathTex("+","\\frac{-cos(0)}{3!}(x-0)^3","+","\\frac{sin(0)}{4!}(x-0)^4","+","......").move_to(eq13, aligned_edge=LEFT)
         else:
-            eq15 = MathTex("sen(x)","=","\\frac{sen(0)}{0!}(x-0)^0","+","\\frac{cos(0)}{1!}(x-0)^1","+","\\frac{-sen(a)}{2!}(x-a)^2").move_to(eq12, aligned_edge=LEFT)
+            eq15 = MathTex("sen(x)","=","\\frac{sen(0)}{0!}(x-0)^0","+","\\frac{cos(0)}{1!}(x-0)^1","+","\\frac{-sen(0)}{2!}(x-0)^2").move_to(eq12, aligned_edge=LEFT)
             eq16 = MathTex("+","\\frac{-cos(0)}{3!}(x-0)^3","+","\\frac{sen(0)}{4!}(x-0)^4","+","......").move_to(eq13, aligned_edge=LEFT)
 
         self.play(
@@ -1332,10 +1332,10 @@ class Taylor_series_derivation(Scene):
         self.wait(4)
 
         if lang=="eng":
-            eq15 = MathTex("cos(x)","=","\\frac{cos(0)}{0!}(x-0)^0","+","\\frac{-sin(0)}{1!}(x-0)^1","+","\\frac{-cos(a)}{2!}(x-a)^2").move_to(eq12, aligned_edge=LEFT)
+            eq15 = MathTex("cos(x)","=","\\frac{cos(0)}{0!}(x-0)^0","+","\\frac{-sin(0)}{1!}(x-0)^1","+","\\frac{-cos(0)}{2!}(x-0)^2").move_to(eq12, aligned_edge=LEFT)
             eq16 = MathTex("+","\\frac{sin(0)}{3!}(x-0)^3","+","\\frac{cos(0)}{4!}(x-0)^4","+","......").move_to(eq13, aligned_edge=LEFT)
         else:
-            eq15 = MathTex("cos(x)","=","\\frac{cos(0)}{0!}(x-0)^0","+","\\frac{-sen(0)}{1!}(x-0)^1","+","\\frac{-cos(a)}{2!}(x-a)^2").move_to(eq12, aligned_edge=LEFT)
+            eq15 = MathTex("cos(x)","=","\\frac{cos(0)}{0!}(x-0)^0","+","\\frac{-sen(0)}{1!}(x-0)^1","+","\\frac{-cos(0)}{2!}(x-0)^2").move_to(eq12, aligned_edge=LEFT)
             eq16 = MathTex("+","\\frac{sen(0)}{3!}(x-0)^3","+","\\frac{cos(0)}{4!}(x-0)^4","+","......").move_to(eq13, aligned_edge=LEFT)
 
         self.play(
@@ -1473,9 +1473,9 @@ if __name__ == "__main__":
     lang= 'eng'
     #lang = 'port'
 
-    #config.frame_size = [850,480]
-    #config.frame_rate = 15
-    config.quality = "medium_quality"
+    config.frame_size = [850,480]
+    config.frame_rate = 15
+    #config.quality = "medium_quality"
 
     if lang=='eng':
         config.output_file="Taylor_series_derivation.mp4"

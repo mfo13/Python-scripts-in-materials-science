@@ -160,9 +160,9 @@ class AnimatedPcolormesh:
         # Absorbing layer boundary condition (Perfectly Matched Layer or PML)
         # to partially cancel the waves at the simulation box bondaries
         #--------------------------------------------------------------
-        cut = 0.1              # PML relative thickness
-        mult = 1.5e5           # sigma magnification factor
-        power = 2              # sigma function exponent
+        cut = 0.1                       # PML relative thickness
+        mult = 1e5     # sigma magnification factor
+        power = 2          # sigma function exponent
         # sigma at the borders
         sigma_x = np.zeros_like(self.X)
         sigma_y = np.zeros_like(self.Y)
@@ -187,7 +187,7 @@ class AnimatedPcolormesh:
         # PML
         sigma = sigma_x + sigma_y
         self.V += mult * (1 - np.exp(1j * sigma))
-                
+                                
         # Matrices construction
         ########################            
         L = np.full(self.m.shape, 1+self.lamb) + self.nu/2*self.V       # matrix of Ls

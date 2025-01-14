@@ -10,7 +10,7 @@ Contact: marcelo.falcao@usp.br
 Description:
 It ilustrates the solution of the Schrodinger's equation in 2D with the
 FDM method and Crank-Nicolson scheme with large sparse matrices.
-The user can choose among 3 classical boundary conditions. 
+The user can choose among 4 classical boundary conditions. 
 
 License:
 MIT License (https://opensource.org/licenses/MIT)
@@ -22,19 +22,18 @@ Packages needed:
 argparse, matplotlib, numpy, scipy
 
 Usage:
-$ python 2D_Schrodinger.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4> --pmf <arg5>
+$ python 2D_Schrodinger.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4>
 Optional arguments:
-- <arg1> left boundary condition, a value among 'd', 'n', 'p' (default: d)
+- <arg1> left boundary condition, a value among 'd', 'n', 'p', 'pml' (default: d)
 - <arg2> right boundary condition, same as above
 - <arg3> upper boundary condition, same as above
 - <arg4> bottom boundary condition, same as above
-- <arg5> pml activiation, on or off (default: off)
 - Use 'python 2D_Schrodinger.py -h' for help.
 
 p.s. d-Dirichlet, n-Neumann, p-periodic
 
-Date: February/2024
-Version: 1.0
+Version: 1.0 February/2024
+Version: 2.0 January/2025
 """
 
 # Import the argparse module for parsing command-line arguments
@@ -84,67 +83,47 @@ class AnimatedPcolormesh:
         # low energy particle
         #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*15*((self.X+0.6)/2))
 
-        # Diffraction grid fill it as you want
+        # Classical double slit experiment
+        #---------------------------------------
+        # we create here a wall with "infinite" potential well and two slits on it
+        wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
+        wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
+        self.V[wall_bot | wall_cent | wall_up] = 1e100
+        
+        # Diffraction grid, fill it as you want
         #---------------------------------------
         # we create here 5 round "transparent" potential wells of our diffraction grid
         # along 2 parallel walls
-        gridpot = 5e2
+        """ gridpot = 5e2
         radius = 0.1
-        for i in range(self.X.shape[0]):
-            for j in range(self.X.shape[1]):
-                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j])**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j]-1/3)**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]+1/6)**2+(self.Y[i,j]+1/3)**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]+1/6)**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]-1/6)**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]+1/2)**2) < radius:
-                    self.V[i,j] = gridpot
-                if np.sqrt((self.X[i,j]-1/6)**2+(self.Y[i,j]-1/2)**2) < radius:
-                    self.V[i,j] = gridpot
-
-        # absorbing layer (PML)
-        # to partially cancel the waves at the simulation box bondaries
-        if self.args.pml == 'on':
-            cut = 0.1               # PML thickness
-            mult = 2e5              # magnitude
-            power = 2               # sigma function power
-            for i in range(self.X.shape[0]):
-                for j in range(self.X.shape[1]):
-                    # left
-                    if self.X[i,j] < -(1-cut):
-                        sigma = (-self.X[i,j]-(1-cut))**power
-                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                    # right
-                    if self.X[i,j] > (1-cut):
-                        sigma = (self.X[i,j]-(1-cut))**power
-                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                    # bottom
-                    if self.Y[i,j] < -(1-cut):
-                        sigma = (-self.Y[i,j]-(1-cut))**power
-                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
-                    # up
-                    if self.Y[i,j] > (1-cut):
-                        sigma = (self.Y[i,j]-(1-cut))**power
-                        self.V[i,j] = mult*(1-np.exp(1j*sigma))
-
+        centers = [
+            (-1/6, 0),
+            (-1/6, 1/3),
+            (-1/6, -1/3),
+            (1/6, -1/6),
+            (1/6, 1/6),
+            (1/6, -1/2),
+            (1/6, 1/2),
+            ]
+        for cx, cy in centers:
+            mask = np.sqrt((self.X - cx)**2 + (self.Y - cy)**2) < radius
+            self.V[mask] = gridpot """
+                               
         # parabolic well
+        #----------------
         """ raio = np.sqrt((self.X)**2+(self.Y)**2)-0.5        
         self.m = np.exp(-(raio**4/0.0001))
         for i in range(len(self.m)):
             for j in range(len(self.m)):
                 self.V[i,j] = 1000*np.sqrt(self.X[i,j]**2+self.Y[i,j]**2)**2 """
 
-        # standing waves (deactivate the potential matrix)
+        # standing wave (deactivate all initiations above )
+        #--------------------------------------------------
         """ self.m = np.exp(1j*self.X*np.pi/2).real*np.exp(1j*self.Y*np.pi/2).real
         self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
         self.m = np.exp(1j*self.X*3/2*np.pi).real*np.exp(1j*self.Y*3/2*np.pi).real """
-        #---------------------------------------------------------------------------
-
+        
         # Figure and plot setups
         #-----------------------
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
@@ -171,11 +150,44 @@ class AnimatedPcolormesh:
         self.secy = self.ax[0].secondary_yaxis('right') # secondary y axis for plot 1
         self.secx.set_xticks([])                        # erase ticks of secondary axis
         self.secy.set_yticks([])
+
+        # Dirichlet boundary conditions are default and the matrices don't need any change
         self.bbclabel = 'Dirichlet'                     # label for bottom bondary condition
         self.ubclabel = 'Dirichlet'                     # label for upper bondary condition
         self.rbclabel = 'Dirichlet'                     # label for right bondary condition
         self.lbclabel = 'Dirichlet'                     # label for left bondary condition
-        
+
+        # Absorbing layer boundary condition (Perfectly Matched Layer or PML)
+        # to partially cancel the waves at the simulation box bondaries
+        #--------------------------------------------------------------
+        cut = 0.1              # PML relative thickness
+        mult = 1.5e5           # sigma magnification factor
+        power = 2              # sigma function exponent
+        # sigma at the borders
+        sigma_x = np.zeros_like(self.X)
+        sigma_y = np.zeros_like(self.Y)
+        # left and right borders
+        if self.args.lbc == 'pml' and self.args.rbc != 'p':
+            mask_left = self.X < -(1 - cut)
+            sigma_x[mask_left] = (-self.X[mask_left] - (1 - cut))**power
+            self.lbclabel = 'PML'
+        if self.args.rbc == 'pml' and self.args.lbc != 'p':
+            mask_right = self.X > (1 - cut)
+            sigma_x[mask_right] = (self.X[mask_right] - (1 - cut))**power
+            self.rbclabel = 'PML'
+        # up and bottom borders
+        if self.args.bbc == 'pml' and self.args.ubc != 'p':
+            mask_bottom = self.Y < -(1 - cut)
+            sigma_y[mask_bottom] = (-self.Y[mask_bottom] - (1 - cut))**power
+            self.bbclabel = 'PML'
+        if self.args.ubc == 'pml' and self.args.bbc != 'p':
+            mask_top = self.Y > (1 - cut)
+            sigma_y[mask_top] = (self.Y[mask_top] - (1 - cut))**power
+            self.ubclabel = 'PML'
+        # PML
+        sigma = sigma_x + sigma_y
+        self.V += mult * (1 - np.exp(1j * sigma))
+                
         # Matrices construction
         ########################            
         L = np.full(self.m.shape, 1+self.lamb) + self.nu/2*self.V       # matrix of Ls
@@ -196,9 +208,7 @@ class AnimatedPcolormesh:
         yupdiagD = np.tile(np.full(len(self.m), self.lamb/2), len(self.m)-1)   # y off diagonals for D
         ybotdiagD = yupdiagD.copy()
 
-        # Set all boundary conditions before setting the sparse matrices
-        # Dirichlet don't need any change
-        # Neumann
+        # Set Nuemann boundary conditions before setting the sparse matrices
         if self.args.lbc == 'n' and self.args.rbc != 'p':                
             subupL[0] *= 2                                      # all left side of off diagonal blocks are double for Neumann
             subupR[0] *= 2
@@ -327,13 +337,13 @@ def parse_arguments():
     Returns:
     - args: Parsed command-line arguments.
     """
-    chois = ['d','n','p']
-    parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation')
-    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=chois, help='Right Boundary Condition')
-    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=chois, help='Left Boundary Condition')
-    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='Upper Boundary Condition', choices=chois, help='Upper Boundary Condition')
-    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='Bottom Boundary Condition', choices=chois, help='Bottom Boundary Condition')
-    parser.add_argument('--pml', type=str.lower, default='off', nargs='?', metavar='PML activation', choices=['on','off'], help='PML activation')
+    chois = ['d','n','p','pml']
+    parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation',
+                                     epilog = 'd: Dirichlet (default), n: Neumann, p: periodic, pml: perfectly matched layer. See the script for more')
+    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Right Boundary Condition')
+    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Left Boundary Condition')
+    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Upper Boundary Condition')
+    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Bottom Boundary Condition')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

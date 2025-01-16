@@ -26,12 +26,12 @@ argparse, matplotlib, numpy
 Usage:
 $ python 1D_wave_function.py --lbc <arg1> --rbc <arg2> --bar <arg3>
 Optional arguments:
-- <arg1> left boundary condition, a value among 'd', 'n' and 'p' (default: d)
+- <arg1> left boundary condition, a value among 'd', 'n', 'p' and 'pml' (default: d)
 - <arg2> right boundary condition, same as above (default: d)
 - <arg3> 'y' or 'n' for a potential barrier in the wave path (default: y)
 - Use 'python 1D_wave_function.py -h' for help.
 
-p.s. d-Dirichlet, n-Neumann, p-periodic
+p.s. d-Dirichlet, n-Neumann, p-periodic, pml-perfectly matched layer
 
 Date: February/2024
 Version: 1.0
@@ -80,21 +80,26 @@ class WaveSimulation:
 
         # constant potential layer
         if self.args.bar == 'y':
-            self.Ve = 0.3           # left position
+            self.Ve = 0.3         # left position
             self.Vr = 0.4         # right position
             for i in range(np.int_((self.Ve+1)*len(self.x)/2),np.int_((self.Vr+1)*len(self.x)/2)):
-                self.V[i] = 1.2e4
+                self.V[i] = 1.05e4
 
-        # # absorbing layer
-        if self.args.bar == 'y':
-            self.Ve = 0           # left position
-            self.Vr = 0.3         # right position
-            # we fill the V grid with between Ve and Vr
-            for i in range(np.int_((self.Ve+1)*len(self.x)/2),np.int_((self.Vr+1)*len(self.x)/2)):
-                sigma = (self.x[i]-self.Ve)**2
-                self.V[i] = 1e5*(1-np.exp(1j*sigma))
-                
-    
+        # PMLs
+        self.cut = 0.1                       # PML relative thickness
+        mult = 2.8e6                      # sigma magnification factor
+        power = 2                       # sigma function exponent
+        sigma_x = np.zeros_like(self.x) # sigma function for PML
+        if self.args.lbc =='pml' and self.args.rbc !='p':
+            mask_left = self.x < -(1 - self.cut)
+            sigma_x[mask_left] = (-self.x[mask_left] - (1 - self.cut))**power
+            self.ylabel = 'Perfeclty Matched Layer'
+        if self.args.rbc == 'pml' and self.args.lbc != 'p':
+            mask_right = self.x > (1 - self.cut)
+            sigma_x[mask_right] = (self.x[mask_right] - (1 - self.cut))**power
+            self.y2label = 'Perfeclty Matched Layer'
+        self.V += mult * (1 - np.exp(1j * sigma_x))
+            
         self.Ldiag = np.full(len(self.x),1+self.lamb) + self.nu/2*self.V                # main diagonal of L
         self.Rdiag = np.full(len(self.x),1-self.lamb) - self.nu/2*self.V                # main diagonal of R
         Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                                 # upper/lower diagonals of L
@@ -111,6 +116,7 @@ class WaveSimulation:
     def applybc(self):
         '''
         Apply the bondary conditions
+        ps.: in case of PMLs they are set on V, not on L or R
         '''
         if self.args.lbc == 'd' and self.args.rbc != 'p':
             self.L[0,0] = 1
@@ -167,8 +173,8 @@ def parse_arguments():
     - args: Parsed command-line arguments.
     """
     parser = argparse.ArgumentParser(description='1D Wave Function Animation')
-    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=['d', 'n', 'p'], help='Left Boundary Condition')
-    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=['d', 'n', 'p'], help='Right Boundary Condition')
+    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=['d', 'n', 'p', 'pml'], help='Left Boundary Condition')
+    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=['d', 'n', 'p', 'pml'], help='Right Boundary Condition')
     parser.add_argument('--bar', type=str.lower, default='y', nargs='?', metavar='Potential barrier in the path?', choices=['y', 'n'], help='Potential barrier in the path??')
     return parser.parse_args()
 
@@ -198,12 +204,12 @@ if __name__ == "__main__":
     ax[0].set_title(r'$\psi$')              # title for plot 0
     ax[1].set_title(r'$|\psi|^2$')          # title for plot 1
 
-    x0, = ax[0].plot([-1,1],[0,0], color='lightgray', linestyle='dotted')   # dotted line at y=0 for plot 0
+    x0, = ax[0].plot([-1,1],[0,0], color='gray', linewidth=0.5)   # dotted line at y=0 for plot 0
     line, = ax[0].plot(wave_sim.x, wave_sim.m.real, label='real')           # plot the initial real line
     line2, = ax[0].plot(wave_sim.x, wave_sim.m.imag, label='imag')          # plot the initial imaginary line
     line3, = ax[1].plot(wave_sim.x, wave_sim.pd, color='green')             # plot the initial probability density
 
-    ax[0].legend(handles=[line, line2])                                     # add legends for real and imaginary plots
+    ax[0].legend(handles=[line, line2], loc='upper right')                  # add legends for real and imaginary plots
 
     # If the potential barrier layer is on, plot vertical lines at the interfaces and changes figure title
     if args.bar == 'y':
@@ -211,8 +217,16 @@ if __name__ == "__main__":
         ax[0].plot([wave_sim.Ve,wave_sim.Ve],[-1,1], color='purple', linestyle='dotted')
         ax[0].plot([wave_sim.Vr,wave_sim.Vr],[-1,1], color='purple', linestyle='dotted')
         ax[1].plot([wave_sim.Ve,wave_sim.Ve],[-1,1], color='purple', linestyle='dotted')
-        ax[1].plot([wave_sim.Vr,wave_sim.Vr],[-1,1], color='purple', linestyle='dotted') 
+        ax[1].plot([wave_sim.Vr,wave_sim.Vr],[-1,1], color='purple', linestyle='dotted')
 
+    # If any PML was set plot vertical lines at the interfaces
+    if args.lbc =='pml' and args.rbc !='p':
+        ax[0].plot([wave_sim.cut-1,wave_sim.cut-1],[-1,1], color='lightgray', linestyle='dotted')
+        ax[1].plot([wave_sim.cut-1,wave_sim.cut-1],[-1,1], color='lightgray', linestyle='dotted')
+    if args.rbc =='pml' and args.lbc !='p':
+        ax[0].plot([1-wave_sim.cut,1-wave_sim.cut],[-1,1], color='lightgray', linestyle='dotted')
+        ax[1].plot([1-wave_sim.cut,1-wave_sim.cut],[-1,1], color='lightgray', linestyle='dotted')
+    
     # define the animation
     ani = animation.FuncAnimation(fig, wave_sim.animate, interval=10, blit=True, save_count=1500)
     

@@ -86,10 +86,10 @@ class AnimatedPcolormesh:
         # Classical double slit experiment
         #---------------------------------------
         # we create here a wall with "infinite" potential well and two slits on it
-        wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        """ wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
         wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
         wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
-        self.V[wall_bot | wall_cent | wall_up] = 1e100
+        self.V[wall_bot | wall_cent | wall_up] = 1e100 """
         
         # Diffraction grid, fill it as you want
         #---------------------------------------
@@ -160,9 +160,9 @@ class AnimatedPcolormesh:
         # Absorbing layer boundary condition (Perfectly Matched Layer or PML)
         # to partially cancel the waves at the simulation box bondaries
         #--------------------------------------------------------------
-        cut = 0.1                       # PML relative thickness
-        mult = 1e5     # sigma magnification factor
-        power = 2          # sigma function exponent
+        cut = 0.1               # PML relative thickness
+        mult = 1.5e5              # sigma magnification factor
+        power = 2               # sigma function exponent
         # sigma at the borders
         sigma_x = np.zeros_like(self.X)
         sigma_y = np.zeros_like(self.Y)

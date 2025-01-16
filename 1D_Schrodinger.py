@@ -10,7 +10,7 @@ Contact: marcelo.falcao@usp.br
 Description:
 It ilustrates the solution of the time-dependent Schrodinger's 
 equation in 1D by the FDM method and Crank-Nicolson scheme.
-The user can choose among 3 classical boundary conditions 
+The user can choose among 4 classical boundary conditions 
 as well as the presence or not of a potential barrier in the
 trajectory.
 
@@ -33,8 +33,8 @@ Optional arguments:
 
 p.s. d-Dirichlet, n-Neumann, p-periodic, pml-perfectly matched layer
 
-Date: February/2024
-Version: 1.0
+Version: 1.0 February/2024
+Version: 2.0 January/2025
 
 """
 

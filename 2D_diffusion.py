@@ -23,7 +23,7 @@ argparse, sys, matplotlib, numpy
 Usage:
 $ python 2D_diffusion.py <arg1> <arg2>
 - <arg1> bmp image (prefer images not larger than 500 px at the edge)
-- <arv2> bondary condition, can be neumann, dirichlet or periodic. (neumann is the default)
+- <arg2> bondary condition, can be neumann, dirichlet or periodic. (neumann is the default)
 - <arg3> R diffusivity (default 1)
 - <arg4> G diffusivity (default 1)
 - <arg5> B diffusivity (default 1)

@@ -26,11 +26,11 @@ Packages needed:
 argparse, vtk, numpy, sympy, pyvista
 
 Usage:
-$ python hydrogen_orbitals.py <n> <l> <m>
+$ python hydrogen-orbitals.py <n> <l> <m>
 - <n>: Quantum number n (n >= 1)
 - <l>: Quantum number l (0 <= l < n)
 - <m>: Quantum number m (-l <= m <= l)
-- Use 'python hydrogen_orbitals.py -h' for help.
+- Use 'python hydrogen-orbitals.py -h' for help.
 
 Date: July 2023
 Version: 1.1

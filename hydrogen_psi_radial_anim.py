@@ -23,7 +23,7 @@ Packages needed:
 argparse, matplotlib, numpy, sympy
 
 Usage:
-$ python hydrogen_psi_radial_anim.py <arg1> <arg2> <arg3>
+$ python hydrogen_psi_radial_anim.py <arg1> <arg2>
 - <arg1> principal quantum number
 - <arg2> azimutal quantum number
 

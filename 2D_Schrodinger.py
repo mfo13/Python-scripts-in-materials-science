@@ -86,10 +86,10 @@ class AnimatedPcolormesh:
         # Classical double slit experiment
         #---------------------------------------
         # we create here a wall with "infinite" potential well and two slits on it
-        """ wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
         wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
         wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
-        self.V[wall_bot | wall_cent | wall_up] = 1e100 """
+        self.V[wall_bot | wall_cent | wall_up] = 1e100
         
         # Diffraction grid, fill it as you want
         #---------------------------------------

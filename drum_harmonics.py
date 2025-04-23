@@ -82,7 +82,7 @@ plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)     # 
 plt.rcParams['text.usetex']=True                                              # sets latex to display our text
 
 # plots the vibration frequency (\nu), N*rr is the normal force of the membrane at the periferic circle, \rho is the material density and h is the membrane thickness
-text ='$\\nu_{('+str(m)+','+str(n)+')}=\\frac{'+format(k,'.3f')+'}{2\\pi}\\sqrt{\\frac{N^*_{rr}}{\\rho{h}}}}$'
+text = f'$\\nu_{{({m},{n})}}=\\frac{{{k:.3f}}}{{2\\pi}}\\sqrt{{\\frac{{N^*_{{rr}}}}{{\\rho{{h}}}}}}$'
 ax.set_title(text, fontsize=14, color='white')
 
 plt.show()	# finally we show our plot window

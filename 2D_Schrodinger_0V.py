@@ -63,9 +63,9 @@ class AnimatedPcolormesh:
         # It is a Gaussian pulse (first part) together with some momentum (second part)
         # ------------------------------------------------------------------------------
         # High energy (momentum) particle
-        #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.6)/2))
+        self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*80*((self.X+0.6)/2))
         # Low energy (momentum) particle
-        self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.6)/2))
+        #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.6)/2))
         
         # Bouncing particle (comment the grid barrier bellow)
         # call the script with --ybc d

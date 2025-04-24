@@ -24,12 +24,12 @@ Packages needed:
 argparse, matplotlib, numpy
 
 Usage:
-$ python 1D_wave_function.py --lbc <arg1> --rbc <arg2> --bar <arg3>
+$ python 1D_Schrodinger.py --lbc <arg1> --rbc <arg2> --bar <arg3>
 Optional arguments:
 - <arg1> left boundary condition, a value among 'd', 'n', 'p' and 'pml' (default: d)
 - <arg2> right boundary condition, same as above (default: d)
 - <arg3> 'y' or 'n' for a potential barrier in the wave path (default: y)
-- Use 'python 1D_wave_function.py -h' for help.
+- Use 'python 1D_Schrodion.py -h' for help.
 
 p.s. d-Dirichlet, n-Neumann, p-periodic, pml-perfectly matched layer
 

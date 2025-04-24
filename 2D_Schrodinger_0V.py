@@ -22,7 +22,7 @@ Packages needed:
 argparse, matplotlib, numpy
 
 Usage:
-$ python 2D_wave.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4>
+$ python 2D_Schrodinger_0V.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4>
 Optional arguments:
 - <arg1> left boundary conditions, a value among 'd', 'n', 'p' (default: d)
 - <arg2> right boundary conditions, same as above

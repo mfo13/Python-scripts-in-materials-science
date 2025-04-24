@@ -191,7 +191,7 @@ def plot_orbital(orbital, cpos='iso', clip_plane='x', eq=''):
     pl = pv.Plotter()   # Initialize the PyVista plotter
     
     # Define scalar bar title based on the azimuthal quantum number (l)
-    scalar_bar_title = '$\|\psi\|^2r^2$' if int(sys.argv[2]) == 0 else '$\|\psi\|^2$'  # For l=0, include r^2 in the scalar bar title
+    scalar_bar_title = r'$\|\psi\|^2r^2$' if int(sys.argv[2]) == 0 else r'$\|\psi\|^2$'  # For l=0, include r^2 in the scalar bar title
     
     # Add a volume to the plotter with the desired grid (orbital) and set additional details below
     vol = pl.add_volume(
@@ -231,8 +231,8 @@ if __name__ == "__main__":
     expr = latex(load_hydrogen_orbital(args.n, args.l, args.m))
 
     # Create LaTeX expressions for the wave function and probability density
-    expr_wfc = f'$\psi_{{({args.n},{args.l},{args.m})}}={expr}$'
-    expr_prob = f'$\|\psi_{{({args.n},{args.l},{args.m})}}\|^2r^2=\|{expr}\|^2r^2$' if args.l == 0 else f'$\|\psi_{{({args.n},{args.l},{args.m})}}\|^2=\|{expr}\|^2$'
+    expr_wfc = rf'$\psi_{{({args.n},{args.l},{args.m})}}={expr}$'
+    expr_prob = rf'$\|\psi_{{({args.n},{args.l},{args.m})}}\|^2r^2=\|{expr}\|^2r^2$' if args.l == 0 else rf'$\|\psi_{{({args.n},{args.l},{args.m})}}\|^2=\|{expr}\|^2$'
 
     # Plot block 1: 3D Wave Function
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -244,7 +244,7 @@ if __name__ == "__main__":
         grid,
         cmap='twilight' if args.n > 1 else 'pink',    # Define the color map
         opacity=[1, 0, 1] if args.n > 1 else 'linear',  # Define the opacity
-        scalar_bar_args={'title': '$\psi$', 'use_opacity': False}  # Set the title of the scalar bar and disable opacity 
+        scalar_bar_args={'title': r'$\psi$', 'use_opacity': False}  # Set the title of the scalar bar and disable opacity 
     )
     vol.prop.interpolation_type = 'linear'  # Interpolation of the scalar values in between points
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     pl = pv.Plotter()                           # Initialize the PyVista plotter
 
     # Define the title for the scalar bar
-    title_bar = '$\|\psi\|^2r^2$' if args.l == 0 else '$\|\psi\|^2$'
+    title_bar = r'$\|\psi\|^2r^2$' if args.l == 0 else r'$\|\psi\|^2$'
 
     # Add a volume to the plotter with the desired grid (orbital) and set additional details below
     vol = pl.add_volume(

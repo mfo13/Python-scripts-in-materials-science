@@ -23,7 +23,7 @@ July 2023
 howtouse = '''
 # How to use
 #
-# $ python spherical_harmonics_anim.py <arg1> <arg2>
+# $ python drum_harmonics.py <arg1> <arg2>
 #
 # <arg1> must be an integer equal or greater than 0 
 # <arg2> must be an integer equal or greater than 1

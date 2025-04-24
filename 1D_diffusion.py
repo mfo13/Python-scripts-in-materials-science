@@ -147,7 +147,7 @@ class PathInteractor:
         self.keepdiffusing = False  # variable to toggle on/off the animation (diffusion)
 
         # we define the animation, infinite loop (frames=None) and 10 ms bettween frames
-        self.anim = animation.FuncAnimation(figure, self.animate, frames=None, interval=10)
+        self.anim = animation.FuncAnimation(figure, self.animate, frames=None, interval=10, cache_frame_data=False)
 
         plt.show() # now we can show our plot
        

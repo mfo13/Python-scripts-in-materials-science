@@ -23,7 +23,7 @@ August 2023
 
 howtouse = '''
 # How to use:
-# python voromaxent2d.py argv1 argv2 argv3 argv4 argv5
+# python 2D_Voronoi_relax.py argv1 argv2 argv3 argv4 argv5
 # - argv1: x unit cell size (integer)
 # - argv2: y unit cell size (integer)
 # - argv3: number of points per unit cell
@@ -139,7 +139,7 @@ nframes=-1
 pontos=pontosini
 
 # animation function
-anim = animation.FuncAnimation(fig, optvoro, interval=100)
+anim = animation.FuncAnimation(fig, optvoro, interval=100, cache_frame_data=False)
 
 plt.show()
 

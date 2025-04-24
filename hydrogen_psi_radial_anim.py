@@ -100,16 +100,16 @@ if __name__ == "__main__":
     ax.legend() # add the legend
     
     ax.set_ylim([-wave_sim.wylim,wave_sim.wylim])    # set y limits for the waves
-    ax.set_ylabel(f'$R\,_n\,_l\:(real\:and\:imag)$') # set y label (left)
+    ax.set_ylabel(r'$R\,_n\,_l\:(real\:and\:imag)$') # set y label (left)
     ax.set_xlim([0,wave_sim.xlim])                   # set x limits
-    ax.set_xlabel(f'$r\:(a_0)$')                     # set x label
+    ax.set_xlabel(r'$r\:(a_0)$')                     # set x label
        
     ax2 = ax.twinx()                                                # set a new axe sharing the x axis
     line3, = ax2.plot(wave_sim.x, wave_sim.dens(), color='green')   # plot the radial probability density
 
     ax2.set_ylim([-wave_sim.dylim,wave_sim.dylim])                  # set y limits for density plot
     ax2.tick_params(axis='y', labelcolor='green')                   # set y tick label color
-    ax2.set_ylabel(f'$\|R\,_n\,_l\|^2\,r^2$', color='green')        # set y label
+    ax2.set_ylabel(r'$\|R\,_n\,_l\|^2\,r^2$', color='green')        # set y label
 
     # define the animation
     ani = animation.FuncAnimation(fig, wave_sim.animate, interval=10, blit=True, save_count=500)

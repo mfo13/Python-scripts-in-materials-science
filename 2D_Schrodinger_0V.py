@@ -67,35 +67,35 @@ class AnimatedPcolormesh:
         # Low energy (momentum) particle
         #self.m = np.exp(-((self.Y)**2+(self.X+0.6)**2)**2/0.1**2)*np.exp(1j*10*((self.X+0.6)/2))
         
-        # Bouncing particle (comment the grid barrier bellow)
+        # Bouncing particle (comment the grid barriers bellow)
+        #----------------------------------------------------
         # call the script with --ybc d
         #self.m = np.exp(-((self.Y)**2+(self.X+0.5)**2)**2/0.1**2)*np.exp(1j*50*((self.X+0.5)/2-self.Y))
 
-        # standing wave (comment the grid barrier bellow)
+        # standing wave (comment the grid barriers bellow)
         #self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
         #---------------------------------------------------------------------------
 
-        self.vi = []                    # positions that will be set to zero for barriers                                                     
-        self.vj = []
-
         # Grid barrier
+        #--------------
         # we create here 3 round barriers of our diffraction grid
         # we store the positions of the matrix to make the code faster
-        for i in range(self.X.shape[0]):
-            for j in range(self.X.shape[1]):
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j])**2) < 0.1:
-                    self.vi.append(i)
-                    self.vj.append(j)
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j]-0.35)**2) < 0.1:
-                    self.vi.append(i)
-                    self.vj.append(j)
-                if np.sqrt((self.X[i,j])**2+(self.Y[i,j]+0.35)**2) < 0.1:
-                    self.vi.append(i)
-                    self.vj.append(j)
+        circle1 = (self.X**2 + self.Y**2) < 0.1**2
+        circle2 = (self.X**2 + (self.Y - 0.35)**2) < 0.1**2
+        circle3 = (self.X**2 + (self.Y + 0.35)**2) < 0.1**2
+        self.barrier = circle1 | circle2 | circle3
+                
+        # Classical double slit experiment
+        #----------------------------------
+        # we create here a wall with 2 slits 
+        # we store the positions of the matrix to make the code faster
+        #wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        #wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
+        #wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
+        #self.barrier = wall_bot | wall_cent | wall_up
 
-        # we force all selected positions to be zero (Dirichlet boundary)
-        for n in range(len(self.vi)):
-            self.m[self.vi[n],self.vj[n]] = 0
+        # we force all selected barrier positions to be zero (Dirichlet boundary)
+        self.m[self.barrier] = 0
 
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
         self.fig.suptitle('2D Schrodinger\'s equation simulation')                      # figure title
@@ -200,8 +200,7 @@ class AnimatedPcolormesh:
         self.m = np.linalg.inv(self.Ly)@(self.Ry@self.m@self.Rx)@np.linalg.inv(self.Lx)
 
         # we reimpose the barrier positions (Dirichlet condition)
-        for n in range(len(self.vi)):
-            self.m[self.vi[n],self.vj[n]] = 0
+        self.m[self.barrier] = 0
                                        
         temparr = self.m.real.ravel()                   # gets the wave real part
         self.pcmr.set_array(temparr)                    # updates the plot colormesh array
@@ -233,7 +232,7 @@ class AnimatedPcolormesh:
         animation = FuncAnimation(self.fig, self.update, frames=None, interval=1, blit=True, save_count=300)
 
         # uncomment this line if you want to save a mp4 movie
-        #animation.save('2D_Schrodinger_0V.mp4', fps=20)
+        #animation.save('2D_Schrodinger_0V.mp4', fps=30)
 
         plt.show()      # show the figure
 

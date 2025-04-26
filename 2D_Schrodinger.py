@@ -89,13 +89,13 @@ class AnimatedPcolormesh:
         wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
         wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
         wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
-        self.V[wall_bot | wall_cent | wall_up] = 1e100
+        self.V[wall_bot | wall_cent | wall_up] = 1e100 + 0j
         
-        # Diffraction grid, fill it as you want
+        # Diffraction grid
         #---------------------------------------
         # we create here 5 round "transparent" potential wells of our diffraction grid
         # along 2 parallel walls
-        """ gridpot = 5e2
+        """ gridpot = 5e2 + 0j
         radius = 0.1
         centers = [
             (-1/6, 0),
@@ -106,17 +106,24 @@ class AnimatedPcolormesh:
             (1/6, -1/2),
             (1/6, 1/2),
             ]
+        mask_total = np.zeros_like(self.X, dtype=bool)
         for cx, cy in centers:
-            mask = np.sqrt((self.X - cx)**2 + (self.Y - cy)**2) < radius
-            self.V[mask] = gridpot """
+            mask_total |= ((self.X - cx)**2 + (self.Y - cy)**2) < radius**2
+        self.V[mask_total] = gridpot """
+
+        # Grid barrier
+        #-------------------
+        # we create here 3 round barriers, "infinite potential", of our diffraction grid
+        """ circle1 = (self.X**2 + self.Y**2) < 0.1**2
+        circle2 = (self.X**2 + (self.Y - 0.35)**2) < 0.1**2
+        circle3 = (self.X**2 + (self.Y + 0.35)**2) < 0.1**2
+        self.V[circle1 | circle2 | circle3] = 1e100 + 0j """
                                
-        # parabolic well
+        # parabolic weel
         #----------------
         """ raio = np.sqrt((self.X)**2+(self.Y)**2)-0.5        
         self.m = np.exp(-(raio**4/0.0001))
-        for i in range(len(self.m)):
-            for j in range(len(self.m)):
-                self.V[i,j] = 1000*np.sqrt(self.X[i,j]**2+self.Y[i,j]**2)**2 """
+        self.V = (1000*np.sqrt(self.X**2+self.Y**2)).astype(np.complex128) """
 
         # standing wave (deactivate all initiations above )
         #--------------------------------------------------
@@ -186,7 +193,7 @@ class AnimatedPcolormesh:
             self.ubclabel = 'PML'
         # PML
         sigma = sigma_x + sigma_y
-        self.V += mult * (1 - np.exp(1j * sigma))
+        self.V += mult * (1 - np.exp(1j * sigma)).astype(np.complex128)
                                 
         # Matrices construction
         ########################            

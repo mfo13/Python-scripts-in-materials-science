@@ -89,10 +89,10 @@ class AnimatedPcolormesh:
         #----------------------------------
         # we create here a wall with 2 slits 
         # we store the positions of the matrix to make the code faster
-        #wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
-        #wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
-        #wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
-        #self.barrier = wall_bot | wall_cent | wall_up
+        """ wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
+        wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
+        self.barrier = wall_bot | wall_cent | wall_up """
 
         # we force all selected barrier positions to be zero (Dirichlet boundary)
         self.m[self.barrier] = 0
@@ -184,12 +184,15 @@ class AnimatedPcolormesh:
             self.Ry[len(self.m)-1,0] = self.lamb/2
             self.ubclabel = 'Periodic boundary'
             self.bbclabel = 'Periodic boundary'
-    
+        
+        # Invert Ly and Lx before the loop
+        self.inv_Ly = np.linalg.inv(self.Ly)
+        self.inv_Lx = np.linalg.inv(self.Lx)
+       
     def update(self, frame):
         '''
         Function to solve the Schrodinger's equation, update the matrix and the colormeshes
         '''
-
         # solve the matricial equation, in this case, 
         # Ly.Ynew.Lx = Ry.Yold.Rx
         # thus,
@@ -197,7 +200,7 @@ class AnimatedPcolormesh:
         # where Ly and Lx are the lambda matrices for implicit terms of x and y directions,
         # Ry and Rx are the matrices for explicit terms, Yold is the old wave matrix and 
         # Ynew is the new wave matrix                                                 
-        self.m = np.linalg.inv(self.Ly)@(self.Ry@self.m@self.Rx)@np.linalg.inv(self.Lx)
+        self.m = self.inv_Ly@(self.Ry@self.m@self.Rx)@self.inv_Lx
 
         # we reimpose the barrier positions (Dirichlet condition)
         self.m[self.barrier] = 0

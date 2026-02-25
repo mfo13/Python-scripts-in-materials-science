@@ -24,7 +24,7 @@ argparse, matplotlib, numpy, scipy
 Usage:
 $ python 2D_Schrodinger.py --lbc <arg1> --rbc <arg2> --ubc <arg3> --bbc <arg4>
 Optional arguments:
-- <arg1> left boundary condition, a value among 'd', 'n', 'p', 'pml' (default: d)
+- <arg1> left boundary condition, a value among 'd', 'n', 'p', 'pml' (default: n)
 - <arg2> right boundary condition, same as above
 - <arg3> upper boundary condition, same as above
 - <arg4> bottom boundary condition, same as above
@@ -70,8 +70,8 @@ class AnimatedPcolormesh:
         self.m = np.ndarray((len(self.X), len(self.Y)), dtype='complex')     # creates the 2D matrix of complex values for the wave function
         self.V = np.zeros(self.m.shape, dtype='complex')                     # we create the potential matrix full of zeros
 
-        self.dx = 2/len(self.X)                                 # grid spacing
-        self.dt = self.dx**2*2                                  # time step size
+        self.dx = self.dy = 1                                   # grid spacing
+        self.dt = 0.5*self.dx**2                                    # time step size
         self.lamb = 1j*self.dt/2/self.dx**2                     # lambda 
         self.nu = 1j*self.dt                                    # nu
 
@@ -86,10 +86,10 @@ class AnimatedPcolormesh:
         # Classical double slit experiment
         #---------------------------------------
         # we create here a wall with "infinite" potential well and two slits on it
-        wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
+        """ wall_bot = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y < -1/5)
         wall_cent = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > -1/10) & (self.Y < 1/10)
         wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
-        self.V[wall_bot | wall_cent | wall_up] = 1e100 + 0j
+        self.V[wall_bot | wall_cent | wall_up] = 1e100 + 0j """
         
         # Diffraction grid
         #---------------------------------------
@@ -114,10 +114,10 @@ class AnimatedPcolormesh:
         # Grid barrier
         #-------------------
         # we create here 3 round barriers, "infinite potential", of our diffraction grid
-        """ circle1 = (self.X**2 + self.Y**2) < 0.1**2
+        circle1 = (self.X**2 + self.Y**2) < 0.1**2
         circle2 = (self.X**2 + (self.Y - 0.35)**2) < 0.1**2
         circle3 = (self.X**2 + (self.Y + 0.35)**2) < 0.1**2
-        self.V[circle1 | circle2 | circle3] = 1e100 + 0j """
+        self.V[circle1 | circle2 | circle3] = 1e100 + 0j
                                
         # parabolic weel
         #----------------
@@ -127,14 +127,16 @@ class AnimatedPcolormesh:
 
         # standing wave (deactivate all initiations above )
         #--------------------------------------------------
-        """ self.m = np.exp(1j*self.X*np.pi/2).real*np.exp(1j*self.Y*np.pi/2).real
-        self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
-        self.m = np.exp(1j*self.X*3/2*np.pi).real*np.exp(1j*self.Y*3/2*np.pi).real """
-        
+        #self.m = np.cos(self.X*np.pi/2)*np.cos(self.Y*np.pi/2)
+        #self.m = np.sin(self.X*np.pi*2/2)*np.sin(self.Y*np.pi*2/2)
+        #self.m = np.cos(self.X*np.pi*3/2)*np.cos(self.Y*np.pi*3/2)
+        #self.m = np.cos(self.X*np.pi/2)*np.cos(self.Y*np.pi/2)+np.sin(self.X*np.pi*2/2)*np.sin(self.Y*np.pi*2/2)
+                
         # Figure and plot setups
         #-----------------------
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
         self.fig.suptitle('2D Schrodinger\'s equation simulation')                      # figure title
+        self.frame_text = self.ax[2].text(0.02, 0.95, '', transform=self.ax[2].transAxes, color='white') # frame number in plot 3
 
         self.pcmr = self.ax[0].pcolormesh(self.X, self.Y, self.m.real, vmin=-1, vmax=1 , cmap='twilight')   # colormesh of the real wave part in plot area 0
         
@@ -297,6 +299,8 @@ class AnimatedPcolormesh:
         self.secx.set_xlabel(self.ubclabel, loc='left', fontsize=8)       # set upper label for bc
         self.secy.set_ylabel(self.rbclabel, loc='top', fontsize=8)        # set right label for bc
 
+        self.m_all = []
+
     def update(self, frame):
         '''
         Function to solve the Schrodinger's equation, update the matrix and the colormeshes
@@ -321,11 +325,23 @@ class AnimatedPcolormesh:
         temparr = (np.conjugate(self.m)*self.m).real.ravel()    # recalculates the probability density
         self.pcmd.set_array(temparr)                            # updates the plot colormesh array
 
+        # uncomment if you want to see the frame number in plot 3
+        #self.frame_text.set_text(f"Frame: {frame}") # update frame number text in plot 3
+
         # uncomment these lines if you want continuous colormap limits updating for plot 2
         #maxabs = max(temparr)
         #self.pcmd.set_clim(vmax=maxabs)
 
-        return self.pcmr, self.pcmi, self.pcmd                  # returns the updated colormeshes
+        # This block is for debugging
+        """ filename = f"grid_0_25/frame_{frame:03d}.png"  # cria nome do tipo frame_001.png
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        self.m = self.m.reshape((150, 150)) 
+        self.m_all.append(self.m.copy())
+        if frame >= 500:
+            np.save("resultado_esquema2.npy", np.array(self.m_all))
+            return """ 
+
+        return self.pcmr, self.pcmi, self.pcmd, self.frame_text                  # returns the updated colormeshes
 
     def animate(self):
         '''
@@ -347,10 +363,10 @@ def parse_arguments():
     chois = ['d','n','p','pml']
     parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation',
                                      epilog = 'd: Dirichlet (default), n: Neumann, p: periodic, pml: perfectly matched layer. See the script for more')
-    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Right Boundary Condition')
-    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Left Boundary Condition')
-    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Upper Boundary Condition')
-    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='d, n, p or pml', choices=chois, help='Bottom Boundary Condition')
+    parser.add_argument('--rbc', type=str.lower, default='n', nargs='?', metavar='d, n, p or pml', choices=chois, help='Right Boundary Condition')
+    parser.add_argument('--lbc', type=str.lower, default='n', nargs='?', metavar='d, n, p or pml', choices=chois, help='Left Boundary Condition')
+    parser.add_argument('--ubc', type=str.lower, default='n', nargs='?', metavar='d, n, p or pml', choices=chois, help='Upper Boundary Condition')
+    parser.add_argument('--bbc', type=str.lower, default='n', nargs='?', metavar='d, n, p or pml', choices=chois, help='Bottom Boundary Condition')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

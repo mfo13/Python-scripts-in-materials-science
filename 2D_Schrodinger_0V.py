@@ -9,8 +9,11 @@ Contact: marcelo.falcao@usp.br
 
 Description:
 It illustrates the solution of the Schrodinger's equation in 2D with the 
-FDM method and Crank-Nicolson scheme without the potential term. 
-The user can choose among 3 classical boundary conditions.
+FDM method and Crank-Nicolson scheme without the potential term.
+It also employs an approximation for the solution of the matricial 
+equation in order to avoid the use of sparse matrices or the ADI method.
+Please refer to the lecture notes for further details. 
+The user can also choose among 3 classical boundary conditions.
 
 License:
 MIT License (https://opensource.org/licenses/MIT)
@@ -76,6 +79,8 @@ class AnimatedPcolormesh:
         #self.m = np.exp(1j*self.X*np.pi).imag*np.exp(1j*self.Y*np.pi).imag
         #---------------------------------------------------------------------------
 
+        self.barrier = [] # stores the barrier locations in the mesh
+
         # Grid barrier
         #--------------
         # we create here 3 round barriers of our diffraction grid
@@ -94,11 +99,19 @@ class AnimatedPcolormesh:
         wall_up = (self.X > 1/5) & (self.X < 1/5 + 1/120) & (self.Y > 1/5)
         self.barrier = wall_bot | wall_cent | wall_up """
 
+        # standing wave (deactivate all initiations above )
+        #--------------------------------------------------
+        #self.m = np.cos(self.X*np.pi/2)*np.cos(self.Y*np.pi/2)
+        #self.m = np.sin(self.X*np.pi*2/2)*np.sin(self.Y*np.pi*2/2)
+        #self.m = np.cos(self.X*np.pi*3/2)*np.cos(self.Y*np.pi*3/2)
+        #self.m = np.cos(self.X*np.pi/2)*np.cos(self.Y*np.pi/2)+np.sin(self.X*np.pi*2/2)*np.sin(self.Y*np.pi*2/2)
+        
         # we force all selected barrier positions to be zero (Dirichlet boundary)
         self.m[self.barrier] = 0
 
         self.fig, self.ax = plt.subplots(1, 3, figsize=(12,4), layout='constrained')    # initialize the figure with 3 plot areas
         self.fig.suptitle('2D Schrodinger\'s equation simulation')                      # figure title
+        self.frame_text = self.ax[2].text(0.02, 0.95, '', transform=self.ax[2].transAxes, color='white') # frame number in plot 3
 
         self.pcmr = self.ax[0].pcolormesh(self.X, self.Y, self.m.real, vmin=-1, vmax=1 , cmap='twilight')   # colormesh of the real wave part in plot area 0
 
@@ -127,8 +140,8 @@ class AnimatedPcolormesh:
         self.bbclabel = 'Dirichlet boundary'            # label for bottom bondary condition
                         
         self.dx = self.dy = 1                                  # grid spacing
-        self.dt = self.dx**2*2                                 # time step size
-        self.lamb = 1j*self.dt/self.dx**2                      # lambda
+        self.dt = 0.5*self.dx**2                               # time step size
+        self.lamb = 1j*self.dt/2/self.dx**2                    # lambda
         
         Ldiag = np.full(len(self.m), np.sqrt(1+2*self.lamb))                  # main diagonal of lambda matrix for implicit terms
         Loffdiag = np.full(len(self.m)-1, -self.lamb/2)                       # upper/lower diagonals of lambda matrix for implicit terms
@@ -188,12 +201,15 @@ class AnimatedPcolormesh:
         # Invert Ly and Lx before the loop
         self.inv_Ly = np.linalg.inv(self.Ly)
         self.inv_Lx = np.linalg.inv(self.Lx)
-       
+
+        # This is for debugging, see bellow      
+        #self.m_all = []
+               
     def update(self, frame):
         '''
         Function to solve the Schrodinger's equation, update the matrix and the colormeshes
         '''
-        # solve the matricial equation, in this case, 
+        # solve the matricial equation, in this case approximated by, 
         # Ly.Ynew.Lx = Ry.Yold.Rx
         # thus,
         # Ynew = Ly^-1.(Ry.Yold.Rx).Lx^-1
@@ -222,11 +238,22 @@ class AnimatedPcolormesh:
         temparr = (np.conjugate(self.m)*self.m).real.ravel()    # recalculates the probability density
         self.pcmd.set_array(temparr)                            # updates the plot colormesh array
 
+        # uncomment if you want to see the frame number
+        #self.frame_text.set_text(f"Frame: {frame}") # update frame number text in plot 3
+
         # uncomment these lines if you want colormap limits updating for plot 2
         #maxabs = max(temparr)
         #self.pcmd.set_clim(vmax=maxabs)
-        
-        return self.pcmr, self.pcmi, self.pcmd                  # returns the updated colormeshes
+
+        # This block is for debugging
+        """ filename = f"grid0V_0_25/frame_{frame:03d}.png"  # cria nome do tipo frame_001.png
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        self.m_all.append(self.m.copy())
+        if frame >= 500:
+            np.save("resultado_esquema1.npy", np.array(self.m_all))
+            return """ 
+                
+        return self.pcmr, self.pcmi, self.pcmd, self.frame_text                  # returns the updated colormeshes
 
     def animate(self):
         '''
@@ -258,7 +285,7 @@ if __name__ == "__main__":
     
     args = parse_arguments()                                      # gets the command line arguments
     
-    x_values = np.linspace(-1,1,200)                              # number of grid points in x
+    x_values = np.linspace(-1,1,150)                              # number of grid points in x
     y_values = x_values                                           # same for y
     animated_plot = AnimatedPcolormesh(x_values, y_values, args)  # creates the animation instance
     animated_plot.animate()                                       # start the animation

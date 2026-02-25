@@ -77,8 +77,8 @@ def parse_arguments():
     # Create an argument parser with a description
     parser = argparse.ArgumentParser(description='Hydrogen Radial Function Animation')
     # Add command-line arguments for principal and azimuthal quantum numbers
-    parser.add_argument('n', metavar='n', type=int, help='Principal quantum number n (n >= 1)')
-    parser.add_argument('l', metavar='l', type=int, help='Azimuthal quantum number l (l < n)')
+    parser.add_argument('n', metavar='n', type=int, nargs='?', help='Principal quantum number n (n >= 1)', default=2)
+    parser.add_argument('l', metavar='l', type=int, nargs='?', help='Azimuthal quantum number l (l < n)', default=1)
     # Parse the command-line arguments and return the result
     return parser.parse_args()
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     ax2.set_ylim([-wave_sim.dylim,wave_sim.dylim])                  # set y limits for density plot
     ax2.tick_params(axis='y', labelcolor='green')                   # set y tick label color
-    ax2.set_ylabel(r'$\|R\,_n\,_l\|^2\,r^2$', color='green')        # set y label
+    ax2.set_ylabel(fr'$\|R\,_{args.n}\,_,\,_{args.l}\,\|^2\,r^2$', color='green')       # set y label
 
     # define the animation
     ani = animation.FuncAnimation(fig, wave_sim.animate, interval=10, blit=True, save_count=500)

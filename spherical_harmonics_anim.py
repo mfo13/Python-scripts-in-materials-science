@@ -50,8 +50,8 @@ def parse_arguments():
         argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Generate an animation of spherical harmonics.")
-    parser.add_argument("l", type=int, help="Degree of the spherical harmonics (must be >= 0, default: 0).", metavar="l", default=0)
-    parser.add_argument("m", type=int, help="Order of the spherical harmonics (-l <= m <= l, default: 0).", metavar="m", default=0)
+    parser.add_argument("l", type=int, nargs='?', help="Degree of the spherical harmonics (must be >= 0, default: 0).", metavar="l", default=3)
+    parser.add_argument("m", type=int, nargs='?', help="Order of the spherical harmonics (-l <= m <= l, default: 0).", metavar="m", default=2)
 
     try:
         args = parser.parse_args()

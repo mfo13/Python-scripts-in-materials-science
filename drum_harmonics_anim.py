@@ -101,8 +101,8 @@ def animate(i, ax, r, theta, z, mc, minz, maxz):
 if __name__ == "__main__":
     # Parse command-line arguments for harmonic numbers
     parser = argparse.ArgumentParser(description='Drum Harmonics Animation')
-    parser.add_argument('m', type=int, help='An integer equal or greater than 0')
-    parser.add_argument('n', type=int, help='An integer equal or greater than 1')
+    parser.add_argument('m', type=int, default=2, nargs='?', help='An integer equal or greater than 0')
+    parser.add_argument('n', type=int, default=1, nargs='?', help='An integer equal or greater than 1')
     args = parser.parse_args()
 
     # Extract harmonic numbers from command-line arguments

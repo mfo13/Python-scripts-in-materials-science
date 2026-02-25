@@ -26,8 +26,8 @@ argparse, matplotlib, numpy
 Usage:
 $ python 1D_Schrodinger.py --lbc <arg1> --rbc <arg2> --bar <arg3>
 Optional arguments:
-- <arg1> left boundary condition, a value among 'd', 'n', 'p' and 'pml' (default: d)
-- <arg2> right boundary condition, same as above (default: d)
+- <arg1> left boundary condition, a value among 'd', 'n', 'p' and 'pml' (default: pml)
+- <arg2> right boundary condition, same as above (default: pml)
 - <arg3> 'y' or 'n' for a potential barrier in the wave path (default: y)
 - Use 'python 1D_Schrodion.py -h' for help.
 
@@ -49,12 +49,12 @@ class WaveSimulation:
         """
         Initialize the WaveSimulation object with given boundary conditions.
         Parameters:
-        - lbc (str): Left boundary condition ('d', 'n', 'p').
-        - rbc (str): Right boundary condition ('d', 'n', 'p').
+        - lbc (str): Left boundary condition ('d', 'n', 'p', 'pml').
+        - rbc (str): Right boundary condition ('d', 'n', 'p', 'pml').
         
         To understand how matrices, vectors and boundary conditions work refer to the lecture documentation. 
         """
-        self.args = args  # Left boundary condition ('d', 'n', 'p')
+        self.args = args  # Left boundary condition ('d', 'n', 'p', 'pml')
                        
         self.ylabel = None  # left side y label  (boundary condition)
         self.y2label = None # right side y label (boundary condition)
@@ -173,9 +173,9 @@ def parse_arguments():
     - args: Parsed command-line arguments.
     """
     parser = argparse.ArgumentParser(description='1D Wave Function Animation')
-    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=['d', 'n', 'p', 'pml'], help='Left Boundary Condition')
-    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=['d', 'n', 'p', 'pml'], help='Right Boundary Condition')
-    parser.add_argument('--bar', type=str.lower, default='y', nargs='?', metavar='Potential barrier in the path?', choices=['y', 'n'], help='Potential barrier in the path??')
+    parser.add_argument('--lbc', type=str.lower, default='pml', nargs='?', metavar='d, n, p or pml', choices=['d', 'n', 'p', 'pml'], help='Left Boundary Condition')
+    parser.add_argument('--rbc', type=str.lower, default='pml', nargs='?', metavar='d, n, p or pml', choices=['d', 'n', 'p', 'pml'], help='Right Boundary Condition')
+    parser.add_argument('--bar', type=str.lower, default='y', nargs='?', metavar='y or n', choices=['y', 'n'], help='Potential barrier in the path?')
     return parser.parse_args()
 
 # Execute the main code only if this script is run directly, not when imported as a module

@@ -209,6 +209,19 @@ def plot_slice(orbital, cpos='iso', cut_plane='x', eq=''):
         normal_rotation = False,            # avoid rotation of the cutting plane
         scalar_bar_args = {'title': scalar_bar_title, 'use_opacity': False}  # Set the title of the scalar bar and disable opacity
     )
+
+    pl.add_mesh_slice(
+        orbital, 
+        scalars = "probability density", 
+        cmap = "rainbow",                   # color map for the probability density
+        generate_triangles = True,
+        normal = cut_plane,                 # cut plane normal axis
+        interaction_event = 'always',       # make the widget interactive
+        opacity = opacity_mapping ,         # opacity mapping to remove the background
+        lighting = False,                   # more pure and visible colors
+        normal_rotation = False,            # avoid rotation of the cutting plane
+        scalar_bar_args = {'title': scalar_bar_title, 'use_opacity': False}  # Set the title of the scalar bar and disable opacity
+    )
     
     pl.add_text(eq, font_size=14)   # Add the text of the equation to the plot window
     pl.camera_position = cpos       # Define the position of the viewer (camera)
@@ -293,11 +306,13 @@ if __name__ == "__main__":
 
     # Plot block 4: Orbital Contours as an Isosurface
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    pl = pv.Plotter()
+    probability = 80                                        # define the probability
     grid = prob_dens(args.n, args.l, args.m)                # Get the probability density function evaluation grid
     data = grid['probability density']                      # get the values
     data_sorted = np.sort(data)[::-1]                       # sort from higher to lower
     cumulative_sum = np.cumsum(data_sorted)                 # calculates the cumulative sum
-    target_prob = 0.8 * cumulative_sum[-1]                  # define the probability for the envelopping contour (ex: 0.8 for 80%)
+    target_prob = probability/100 * cumulative_sum[-1]      # define the probability target
     index = np.where(cumulative_sum >= target_prob)[0][0]   # find the cut-off index
     eval_at = data_sorted[index]
     # Make the contour
@@ -306,33 +321,36 @@ if __name__ == "__main__":
         method='marching_cubes'     # VTK filter to create the contour
     )
     contours = contours.interpolate(grid)   # Interpolate the countour with the grid
-    # Plot the contour
-    contours.plot(
-        smooth_shading=True,    # Contour rounded edges
-        show_scalar_bar=False,  # No scalar bar
-        color='blue',           # Contour color
-        opacity = 0.5           # make the contour transparent
+    pl.add_mesh(
+        contours, 
+        smooth_shading=True, 
+        show_scalar_bar=False, 
+        color='blue', 
+        opacity=0.5
     )
-
+    # Adiciona o texto corretamente com os parâmetros de fonte
+    pl.add_text(f'Volume with {probability}% of probability.', font_size=11)
+    pl.show_axes()
+    pl.show()
+    
     # Plot block 5: Orbital Probability Density with a Density Plot of Points
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    grid = prob_dens(args.n, args.l, args.m)                                # Get the probability density function evaluation grid
-    prob = grid['probability density'] / grid['probability density'].sum()  # Normalize the probability densities by their whole sum
-    indices = np.random.choice(grid.n_points, 10000, p=prob)                # Take points randomly but weighted by the probability density (10,000 points)
-
-    # Add a small amount of noise to the coordinates to fade out the grid appearance
-    points = grid.points[indices]
-    points += np.random.random(points.shape) - 0.5
-    
-    point_cloud = pv.PolyData(points)   # Create a point cloud
-
-    # Plot the points
-    point_cloud.plot(
-        style='points_gaussian',        # Gaussian-like representation
-        render_points_as_spheres=False, # Points as points
-        point_size=1,                   # Point size
-        emissive=False,                 # Not emissive points (matte)
-        show_scalar_bar=False,          # No scalar bar
-        cpos='iso',                      # Point of view (camera position)
-        color=[0, 200, 255]             # Point color
+    pl = pv.Plotter()
+    n_points = 10000                                                        # number of points
+    prob = grid['probability density'] / grid['probability density'].sum()  # normalize the probability
+    indices = np.random.choice(grid.n_points, n_points, p=prob)             # sort applying the probability
+    points = grid.points[indices].copy()
+    points += (np.random.rand(points.shape[0], 3) - 0.5) * grid.spacing     # add some noise
+    point_cloud = pv.PolyData(points)                                       # discret points object
+    pl.add_mesh(
+        point_cloud,
+        style='points_gaussian',
+        render_points_as_spheres=False,
+        point_size=1,                 
+        emissive=False,
+        show_scalar_bar=False,
+        color=[0, 200, 255]             # cian
     )
+    pl.add_text(f'Cloud with {n_points} points.', font_size=11) # title
+    pl.show_axes()
+    pl.show()

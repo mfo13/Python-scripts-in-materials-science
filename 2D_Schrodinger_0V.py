@@ -274,10 +274,10 @@ def parse_arguments():
     """
     chois = ['d','n','p']
     parser = argparse.ArgumentParser(description='2D Schrodinger\'s equation simulation')
-    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=chois, help='Left Boundary Condition')
-    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=chois, help='Right Boundary Condition')
-    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='Upper Boundary Condition', choices=chois, help='Upper Boundary Condition')
-    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='Bottom Boundary Condition', choices=chois, help='Bottom Boundary Condition')
+    parser.add_argument('--lbc', type=str.lower, default='d', nargs='?', metavar='Left Boundary Condition', choices=chois, help='Left Boundary Condition (d, n or p)')
+    parser.add_argument('--rbc', type=str.lower, default='d', nargs='?', metavar='Right Boundary Condition', choices=chois, help='Right Boundary Condition (d, n or p)')
+    parser.add_argument('--ubc', type=str.lower, default='d', nargs='?', metavar='Upper Boundary Condition', choices=chois, help='Upper Boundary Condition (d, n or p)')
+    parser.add_argument('--bbc', type=str.lower, default='d', nargs='?', metavar='Bottom Boundary Condition', choices=chois, help='Bottom Boundary Condition (d, n or p)')
     return parser.parse_args()
     
 # Execute the main code only if this script is run directly, not when imported as a module

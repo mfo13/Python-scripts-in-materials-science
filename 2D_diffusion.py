@@ -52,7 +52,7 @@ def parse_arguments():
     parser.add_argument('image_path', metavar='image_path', type=str, help='Path to the BMP image file')
     parser.add_argument('boundary_condition', metavar='boundary_condition', type=str, nargs='?',
                         choices=['neumann', 'dirichlet', 'periodic'],
-                        help='Boundary condition for the diffusion')
+                        help='Boundary condition for the diffusion (neumann, dirichlet or periodic)')
     parser.add_argument('Dr', metavar='Dr', type=float, nargs='?', default=1.0,
                         help='Red color diffusivity (default: 1.0)')
     parser.add_argument('Dg', metavar='Dg', type=float, nargs='?', default=1.0,

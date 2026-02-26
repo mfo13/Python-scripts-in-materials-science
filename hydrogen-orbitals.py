@@ -209,20 +209,7 @@ def plot_slice(orbital, cpos='iso', cut_plane='x', eq=''):
         normal_rotation = False,            # avoid rotation of the cutting plane
         scalar_bar_args = {'title': scalar_bar_title, 'use_opacity': False}  # Set the title of the scalar bar and disable opacity
     )
-
-    pl.add_mesh_slice(
-        orbital, 
-        scalars = "probability density", 
-        cmap = "rainbow",                   # color map for the probability density
-        generate_triangles = True,
-        normal = cut_plane,                 # cut plane normal axis
-        interaction_event = 'always',       # make the widget interactive
-        opacity = opacity_mapping ,         # opacity mapping to remove the background
-        lighting = False,                   # more pure and visible colors
-        normal_rotation = False,            # avoid rotation of the cutting plane
-        scalar_bar_args = {'title': scalar_bar_title, 'use_opacity': False}  # Set the title of the scalar bar and disable opacity
-    )
-    
+      
     pl.add_text(eq, font_size=14)   # Add the text of the equation to the plot window
     pl.camera_position = cpos       # Define the position of the viewer (camera)
     pl.show_axes()                  # Make the x, y, and z axes visible
@@ -346,7 +333,7 @@ if __name__ == "__main__":
         point_cloud,
         style='points_gaussian',
         render_points_as_spheres=False,
-        point_size=1,                 
+        point_size=0.7,                 
         emissive=False,
         show_scalar_bar=False,
         color=[0, 200, 255]             # cian

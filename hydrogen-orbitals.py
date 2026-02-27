@@ -231,8 +231,28 @@ if __name__ == "__main__":
     expr = latex(load_hydrogen_orbital(args.n, args.l, args.m))
 
     # Create LaTeX expressions for the wave function and probability density
-    expr_wfc = f'$\\psi_{{({args.n},{args.l},{args.m})}}={expr}$'
-    expr_prob = f'$\\mid\\psi_{{({args.n},{args.l},{args.m})}}\\mid^2r^2=\\mid{expr}\\mid^2r^2$' if args.l == 0 else f'$\\mid\\psi_{{({args.n},{args.l},{args.m})}}\\mid^2=\\mid{expr}\\mid^2$'
+    # logics for wfc and probability density
+    # p.s. I know it is crazy...
+    if args.m < 0:
+        # if m < 0: imaginary
+        expr_wfc = f'$\\Im\\left\\{{{{\\psi_{{({args.n},{args.l},{args.m})}}}}\\right\\}} = \\Im\\left\\{{{expr}\\right\\}}$'
+        label_dens = f'\\left\\vert\\Im\\left\\{{{{\\psi_{{({args.n},{args.l},{args.m})}}}}\\right\\}}\\right\\vert^2'
+        val_dens = f'\\left\\vert\\Im\\left\\{{{expr}\\right\\}}\\right\\vert^2'
+    elif args.m > 0:
+        # if m > 0: real
+        expr_wfc = f'$\\Re\\left\\{{{{\\psi_{{({args.n},{args.l},{args.m})}}}}\\right\\}} = \\Re\\left\\{{{expr}\\right\\}}$'
+        label_dens = f'\\left\\vert\\Re\\left\\{{{{\\psi_{{({args.n},{args.l},{args.m})}}}}\\right\\}}\\right\\vert^2'
+        val_dens = f'\\left\\vert\\Re\\left\\{{{expr}\\right\\}}\\right\\vert^2'
+    else:
+        # if m = 0: pure real
+        expr_wfc = f'$\\psi_{{({args.n},{args.l},{args.m})}} = {expr}$'
+        label_dens = f'\\left\\vert\\psi_{{({args.n},{args.l},{args.m})}}\\right\\vert^2'
+        val_dens = f'\\left\\vert{expr}\\right\\vert^2'
+    # final density label assembly (m independent)
+    if args.l == 0:
+        expr_prob = f'${label_dens}r = {val_dens}r$'
+    else:
+        expr_prob = f'${label_dens} = {val_dens}$'
 
     # Plot block 1: 3D Wave Function
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

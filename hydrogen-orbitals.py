@@ -158,7 +158,7 @@ def prob_dens(n=1, l=0, m=0):
     
     dens *= dens                                        # Square the absolute value (actual probability density)
     cloud = lambdify((r, phi, theta), dens, 'numpy')    # Convert the sympy algebraic function to a numpy expression for numerical evaluation
-    org = 2 * (n**2 + n) + 4                            # Half of the simulation box size, approximately close to the tail of the radial function (in Hartree unit)
+    org = 1.7 * (n**2 + n) + 4                          # Half of the simulation box size, approximately close to the tail of the radial function (in Hartree unit)
     dim = 100                                           # Number of points in one dimension of the simulation box
     sp = (org * 2) / (dim - 1)                          # Spacing of points in the simulation box
     
@@ -188,7 +188,7 @@ def plot_slice(orbital, cpos='iso', cut_plane='x', eq=''):
     """
     pl = pv.Plotter()       # initialize the plotter
      
-    # Define scalar bar title based on the azimuthal quantum number (l)
+    # Define scale bar title based on the azimuthal quantum number (l)
     scalar_bar_title = '$\\mid\\psi\\mid^2r^2$' if int(args.l) == 0 else '$\\mid\\psi\\mid^2$'  # For l=0, include r^2 in the scalar bar title
 
     # opacity mapping to remove the background minimum value of the cutting plane
@@ -250,9 +250,9 @@ if __name__ == "__main__":
         val_dens = f'\\left\\vert{expr}\\right\\vert^2'
     # final density label assembly (m independent)
     if args.l == 0:
-        expr_prob = f'${label_dens}r = {val_dens}r$'
+        expr_prob = f'${label_dens}r^2 = {val_dens}r^2$'    # here it is the radial probability
     else:
-        expr_prob = f'${label_dens} = {val_dens}$'
+        expr_prob = f'${label_dens} = {val_dens}$'          # here it is the usual probability density
 
     # Plot block 1: 3D Wave Function
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -318,8 +318,8 @@ if __name__ == "__main__":
     
     # Make the contour
     contours = grid.contour(
-        [eval_at],                  # Contour values (just one here)
-        method='marching_cubes'     # VTK filter to create the contour
+        [eval_at],              # Contour values (just one here)
+        method='contour'        # pyVista chooses the best VTK algorithm
     )
     contours = contours.interpolate(grid)   # Interpolate the countour with the grid
 
@@ -329,7 +329,9 @@ if __name__ == "__main__":
         smooth_shading=True,    # smooth surface for the countour    
         show_scalar_bar=False,  # no scale bar needed
         color='blue',           # color of the surface countour
-        opacity=0.5             # the surface is transparent, you can see through
+        lighting=True,          # to see the light direction
+        specular=0.3,           # a bit specular to look like a balloon
+        opacity=0.5             # the surface is transparent
     )
     pl.add_text(f'Volume with {probability}% of probability.', font_size=11)    # title
     pl.show_axes()                                                              # show x, y and z axes

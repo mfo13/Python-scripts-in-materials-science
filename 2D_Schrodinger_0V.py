@@ -204,6 +204,8 @@ class AnimatedPcolormesh:
 
         # This is for debugging, see bellow      
         #self.m_all = []
+
+        return
                
     def update(self, frame):
         '''

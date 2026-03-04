@@ -421,61 +421,124 @@ if __name__ == "__main__":
     # define the chosen conventional unit cell
     if args.lattice in sc_ab:
         conventional = SimpleCubic(latticeconstant=1, symbol="Fe")
+        texto = "Simple&nbsp;Cubic"
+        texto2 = "a=b=c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in bcc_ab:
         conventional = BodyCenteredCubic(symbol="Fe")
+        texto = "Body-Centered&nbsp;Cubic"
+        texto2 = "a=b=c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in fcc_ab:
         conventional = FaceCenteredCubic(latticeconstant=1, symbol="Fe")
+        texto = "Face-Centered&nbsp;Cubic"
+        texto2 = "a=b=c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in st_ab:
         conventional = SimpleTetragonal(latticeconstant=(1,1.5), symbol="Fe")
+        texto = "Simple&nbsp;Tetragonal"
+        texto2 = "a=b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in bct_ab:
         conventional = CenteredTetragonal(latticeconstant=(1,1.5), symbol="Fe")
+        texto = "Body-Centered&nbsp;Tetragonal"
+        texto2 = "a=b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in oP_ab:
         conventional = SimpleOrthorhombic(latticeconstant=(1,1.5,2), symbol="Fe")
+        texto = "Simple&nbsp;Orthorhombic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in oS_ab:
         conventional = BaseCenteredOrthorhombic(latticeconstant=(1,1.5,2), symbol="Fe")
+        texto = "Base-Centered&nbsp;Orthorhombic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in bco_ab:
         conventional = BodyCenteredOrthorhombic(latticeconstant=(1,1.5,2), symbol="Fe")
+        texto = "Body-Centered&nbsp;Orthorhombic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in fco_ab:
         conventional = FaceCenteredOrthorhombic(latticeconstant=(1,1.5,2), symbol="Fe")
+        texto = "Face-Centered&nbsp;Orthorhombic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"
     elif args.lattice in mP_ab:
         conventional = SimpleMonoclinic(latticeconstant=(1,1.5,2,75), symbol="Fe")
         # trick to keep the same coordinate system, not necessary for orthogonal cells
         conventional = spglib.find_primitive((conventional.get_cell(), conventional.get_scaled_positions(), conventional.get_atomic_numbers()))
         conventional = Atoms(cell=conventional[0], scaled_positions=[[0,0,0]], symbols=[26])
+        texto = "Simple&nbsp;Monoclinic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#947;=90<sup>o</sup>&#8800;&#946;"
     elif args.lattice in bcm_ab:
         conventional = BaseCenteredMonoclinic(latticeconstant=(1,1.5,2,75), symbol="Fe")
         # trick to keep the same coordinate system, not necessary for orthogonal cells
         conventional = spglib.find_primitive((conventional.get_cell(), conventional.get_scaled_positions(), conventional.get_atomic_numbers()))
         conventional = Atoms(cell=conventional[0], scaled_positions=[[0,0,0],[0.5,0.5,0]], symbols=[26,26])
+        texto = "Base-Centered&nbsp;Monoclinic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;=&#947;=90<sup>o</sup>&#8800;&#946;"
     elif args.lattice in tri_ab:
         conventional = Triclinic(latticeconstant=(1,1.5,2,50,60,75), symbol="Fe")
         # trick to keep the same coordinate system, not necessary for orthogonal cells
         conventional = spglib.find_primitive((conventional.get_cell(), conventional.get_scaled_positions(), conventional.get_atomic_numbers()))
         conventional = Atoms(cell=conventional[0], scaled_positions=[[0,0,0]], symbols=[26])
+        texto = "Triclinic"
+        texto2 = "a&#8800;b&#8800;c&nbsp;&nbsp;&#945;&#8800;&#946;&#8800;&#947;&#8800;90<sup>o</sup>"
     elif args.lattice in hex_ab:
         conventional = Hexagonal(latticeconstant=(1,1.5), symbol="Fe")
+        texto = "Hexagonal"
+        texto2 = "a=b&#8800;c&nbsp;&nbsp;&#945;=&#946;=90<sup>o</sup>&nbsp;&nbsp;&#947;=120<sup>o</sup>"
     elif args.lattice in rhl_ab:
         # rhombohedral is a triclinic with equal angles (different from 90 and 60) and with equal edges
         conventional = Triclinic(latticeconstant=(1,1,1,75,75,75), symbol="Fe")
         # trick to keep the same coordinate system, not necessary for orthogonal cells
         conventional = spglib.find_primitive((conventional.get_cell(), conventional.get_scaled_positions(), conventional.get_atomic_numbers()))
         conventional = Atoms(cell=conventional[0], scaled_positions=[[0,0,0]], symbols=[26])
+        texto = "Rhombohedral (Trigonal)"
+        texto2 = "a=b=c&nbsp;&nbsp;&#945;=&#946;=&#947;&#8800;90<sup>o</sup>&#8800;60<sup>o</sup>"
     elif args.lattice in hcp_ab:
         conventional = HexagonalClosedPacked(latticeconstant=(1,np.sqrt(8/3)), symbol="Fe")
+        texto = "Hexagonal&nbsp;Close&nbsp;Packed"
+        texto2 = "a=b&#8800;c&nbsp;&nbsp;&#945;=&#946;=90<sup>o</sup>&nbsp;&nbsp;&#947;=120<sup>o</sup>"
     elif args.lattice in dc_ab:
-        conventional = Diamond(latticeconstant=(1), symbol="Fe")        
+        conventional = Diamond(latticeconstant=(1), symbol="Fe")
+        texto = "Diamond"
+        texto2 = "a=b=c&nbsp;&nbsp;&#945;=&#946;=&#947;=90<sup>o</sup>"      
 
     # initialize the plot
     fig = go.Figure()
 
     # plot the conventional unit cell
     plot_conventional_cell(fig, conventional)
-    
+
+    # Title and subtitle
+    fig.add_annotation(
+        xref="paper",
+        yref="paper",
+        x=0.5,       # 0 = esquerda, 1 = direita
+        y=0.99,       # 0 = baixo, 1 = topo
+        text=texto,
+        showarrow=False,
+        font=dict(size=25, color="darkgray"),
+        font_family="Arial",
+        xanchor="center"
+        )
+    fig.add_annotation(
+        xref="paper",
+        yref="paper",
+        x=0.5,       # 0 = esquerda, 1 = direita
+        y=0.95,       # 0 = baixo, 1 = topo
+        text=texto2,
+        showarrow=False,
+        font=dict(size=18, color="darkgray"),
+        font_family="DeJaVu Sans",
+        xanchor="center"
+        )
+   
     # if chosen plot the primitive and the Wiger-Seitz (Voronoi) cells
     if args.primitive:
         plot_primitive_cell(fig, conventional)
     if args.ws:
         plot_ws_cell(fig, conventional)
+  
+    # set initial camera view
+    camera = dict(
+        eye=dict(x=1.3, y=1.6, z=1),
+        projection=dict(type = 'perspective') # default; another option: orthographic
+    )
+    fig.update_layout(scene_camera=camera)
 
     # show the figure
     fig.show()

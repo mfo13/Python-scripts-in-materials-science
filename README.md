@@ -20,3 +20,5 @@ https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/36
 https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/ed196787-ebdc-4f16-a2b2-3734536378cc
 
 https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/edf63159-ef41-4e74-8e36-6a9124113736
+
+https://github.com/user-attachments/assets/ffaf8783-67c8-4fb6-ac56-7c664a4e6669

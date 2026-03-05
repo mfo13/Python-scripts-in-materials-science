@@ -531,6 +531,13 @@ if __name__ == "__main__":
     if args.primitive:
         plot_primitive_cell(fig, conventional)
     if args.ws:
+        if args.lattice in dc_ab:
+            # the ws cell of diamond is the same of fcc
+            conventional = FaceCenteredCubic(latticeconstant=1, symbol="Fe")
+        if args.lattice in hcp_ab:
+            # the ws cell of hcp is the same of hP
+            conventional = Hexagonal(latticeconstant=(1,np.sqrt(8/3)), symbol="Fe")
+        
         plot_ws_cell(fig, conventional)
   
     # set initial camera view

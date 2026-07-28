@@ -68,7 +68,6 @@ def pattern(_id):
     """
     Here we define some resetting profiles for the initial concentration curve
     """
-
     # pattern 0
     # full of zeros
     pat = np.zeros(n)
@@ -135,7 +134,18 @@ class PathInteractor:
 
         # plot title with initial bondary condition
         self.ax.set_title('1D Diffusion Animation - Boundary Condition: Dirichlet')
-        # we add the help message into the plot
+        # we show the timestep factor
+        self.timestepfactortext = self.ax.text(
+            0.02, 0.95, 
+            'Timestep: ' + f"{self.timestepfactor:.5g}", 
+            fontsize=10, 
+            color='darkorange', 
+            wrap=True, 
+            zorder=10, 
+            transform=self.ax.transAxes,  # Posiciona baseado na tela (0 a 1)
+            animated=True                 # OBRIGATÓRIO para funcionar com blit
+        )
+        # we add the help message into the plot (background)
         self.helpbox = self.ax.text(-0.9,0.1, howtouse, color='blue', fontsize=10.5, wrap=True)
         
         self.canvas.mpl_connect('draw_event', self.on_draw)                      # detects drawing event and executes on_draw function
@@ -182,6 +192,7 @@ class PathInteractor:
         self.ax.draw_artist(self.line)                             # draw the interactive markers (line)
         self.mat[:,:] = self.vertices[:,1]                         # updates the matrix of the colormesh
         self.ax2.set_array(self.mat)
+        self.ax.draw_artist(self.timestepfactortext)               # updates the timesetep text
         
     def on_button_press(self, event):
         """
@@ -206,8 +217,8 @@ class PathInteractor:
         """
         Function to handle keyboard pressing
         """
-        # check if the mouse is inside the plot or do nothing
-        if not event.inaxes:
+        # check if the mouse is inside the canvas or do nothing
+        if not  event.canvas.figure.bbox.contains(event.x, event.y):
             return
 
         # show or hide vertices as well as toggle path user's interaction
@@ -253,13 +264,16 @@ class PathInteractor:
                  self.showverts = True
                  self.line.set_visible(True)
             self.timestepfactor = 1                         # set the timestep multiplier back to 1
-             
+            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+
         if event.key == '+':                # double the timestep multiplier
             self.timestepfactor *= 2
-
+            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+                                                
         if event.key == '-':                # half the timestep multiplier
             self.timestepfactor *= 0.5
-
+            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+                                       
         # toggle help visibility
         if event.key == 'h':
             self.helpshow = not self.helpshow           # flip helpshow condition
@@ -351,7 +365,7 @@ if __name__ == "__main__":
     ax2.set_yticks([])
     # we set the y axis title
     ax1.set_ylabel('Concentration')
-
+    
     # we define the X, Y matrices for meshgrid: n x 2
     X, Y = np.meshgrid(np.linspace(-1,1,n), np.array([0,1]))
     # we define the initial values of the mesh points

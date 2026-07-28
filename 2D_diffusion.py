@@ -113,7 +113,8 @@ def apply_boundary_condition(bc, m0, m, D, dt, bottom, right):
     Returns:
         numpy.ndarray: Matrix representing the updated state after applying boundary conditions.
     
-    Notice: Use of numpy slicing and broadcasting instead of nested for loops
+    Matrix operations were explicitly written for teaching porpouses.
+    Notice the use of numpy slicing and broadcasting instead of nested for loops.
     """
     if bc == 'neumann':
         # Neumann bondary condition, dC/dx = dC/dy = 0

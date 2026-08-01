@@ -9,82 +9,84 @@ Affiliation: University of São Paulo (USP)
 Contact: marcelo.falcao@usp.br
 
 Description:
-It ilustrates the dislocations' motions and interactions in a "crystalline" bubble raft. 
-Many phenomena can be observed like discolation birth, slip, anyhilation, 
+It illustrates the dislocations' motions and interactions in a "crystalline" bubble raft. 
+Many phenomena can be observed like dislocation birth, slip, annihilation, 
 interaction with vacancies, grain contours and other dislocations, climbing and bouncing back. 
 Other phenomena can also be observed like grain growth and cracking.
 
-License:
-MIT License (https://opensource.org/licenses/MIT)
+License: MIT License (https://opensource.org/licenses/MIT)
+Purpose: Educational tool for demonstrating the classical Bragg-Nye bubble raft experiment.
+Packages needed: numpy, scipy, argparse, matplotlib
 
-Purpose:
-Educational tool for demonstrating the classical Bragg-Nye bubble raft experiment.
-
-Packages needed:
-numpy, scipy, argparse, matplotlib
-
-Usage:
-
-$python Bragg-Nye_raft.py [-h] [-g {one-by-one,all-at-once}] [--n-target N_TARGET] 
-                            [--relax-steps RELAX_STEPS] [--compress-velocity COMPRESS_VELOCITY]
-
-Options:
-  -h, --help            show help message and exit
-  -g {one-by-one,all-at-once}, --bubble-generation {one-by-one,all-at-once}
-                        How bubbles are created (default: one-by-one)
-  --n-target N_TARGET   How many bubbles (defaults: 550 for one-by-one, 4000 for all-at-once)
-  --relax-steps RELAX_STEPS
-                        Relaxation steps after bubble generation and after box opening (default: 1000).
-  --compress-velocity COMPRESS_VELOCITY
-                        Wall velocity in A units per step (default: 0.01)
-
-
-Date: July, 2026
-Version: 1.0
-
-Note:
-The script was entirely developed after many interactions with the AI (Claude, Anthropic, 2026).
-
+Acknowledgements:
+The main script was entirely developed after many interactions with Claude (Anthropic).
+Final code refactored with performance and structural optimization support from Gemini AI (Google).
 """
 
-""" Packages """
-import numpy as np
-from scipy.spatial import cKDTree
 import argparse
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from scipy.spatial import cKDTree
 
-"""---------------------------------------------------------------------------------
-FIRST BLOCK - physics engine
+# =============================================================================
+# 1. PARAMETERS & CONSTANTS
+# =============================================================================
+A = 1.0                         # Lattice parameter
+N_EXP = 12                      # Repulsive exponent
+M_EXP = 6                       # Attractive exponent
 
-Lennard-Jones potential with a tanh-based sigmoid saturation on the force magnitude, 
-preventing excessively large forces at close range. 
-Vectorized grid-based neighbor search
-with a cached Verlet list (skin margin) to avoid rebuilding neighbors every step.
-Verlet velocity integrator with internal friction. Velocity rescaling
-for temperature control.
-Bond-orientational order parameter (psi6) to identify dislocations and
-grain boundaries.
-
------------------------------------------------------------------------------------"""
-A = 1.0                        # lattice parameter
-N_EXP = 12                     # repulsive exponent
-M_EXP = 6                      # atractive exponent
-
-# C = (n/(n-m)) * (n/m)^(m/(n-m))  -- guarantees that EPS is the well depth
 _LJ_C = (N_EXP / (N_EXP - M_EXP)) * (N_EXP / M_EXP) ** (M_EXP / (N_EXP - M_EXP))
-# sigma = A / (n/m)^(1/(n-m))      -- guarantees that the minimum r = A
 SIGMA = A / (N_EXP / M_EXP) ** (1.0 / (N_EXP - M_EXP))
 
-EPS = 5.0                      # well depth
-CUTOFF = 1.5 * A               # cutoff radius for interaction calculations
-MASS = 1.0                     # bubble mass (reduced units)
+EPS = 5.0                       # Well depth
+CUTOFF = 1.5 * A                # Cutoff radius for forces
+MASS = 1.0                      # Bubble mass
+F_MAX = 110.0                   # Limiting force for tanh-sigmoid saturation
 
-F_MAX = 110.0                  # limiting force for tanh-sigmoid saturation
+DT = 0.02                       # Time step
+STEPS_PER_FRAME = 4             # Steps per frame redraw
+N_RESCALE = 20                  # Steps between velocity rescaling
+TARGET_KE_PER_PARTICLE = 0.02   # Target KE (temperature)
+GAMMA_FRICTION = 2.0            # Internal friction factor
 
+VERLET_SKIN = 0.5 * A           # Skin margin for Verlet list
+VERLET_REBUILD_INTERVAL = 200   # Rebuild interval for one-by-one
+
+BUBBLE_RADIUS = 0.5 * A
+WALL_SPACING = A / 3
+WALL_PAD = A / 3
+WALL_SIDE_ORDER = ("bottom", "top", "left", "right")
+
+_rng = np.random.default_rng(42)
+
+N_TARGET_DEFAULT = 550
+SPAWN_INTERVAL = 15
+BIRTH_JITTER = 0.0005 * A
+
+TRIANGLE_TOLERANCE = 0.20
+MAX_TRIANGLE_ATTEMPTS = 50
+
+N_BUBBLES_DEFAULT = 4000
+MIN_SEPARATION = 0.05 * A
+AREA_FACTOR = 1.0
+VERLET_REBUILD_INTERVAL_ALL_AT_ONCE = 5
+
+RELAX_STEPS = 1000
+COMPRESS_VELOCITY_DEFAULT = 0.01 * A
+VERLET_REBUILD_INTERVAL_COMPRESSION = 10
+
+
+# =============================================================================
+# 2. PHYSICS ENGINE (GRID-BASED)
+# =============================================================================
 
 def compute_forces_from_pairs(pos, pairs, eps=EPS, sigma=SIGMA, cutoff=CUTOFF,
                                n_exp=N_EXP, m_exp=M_EXP, f_max=F_MAX):
+    """
+    Computes inter-particle forces based on the saturating Lennard-Jones-like potential.
+    Forces are capped via tanh to ensure numerical stability during rapid particle additions.
+    """
     forces = np.zeros_like(pos)
     if len(pairs) == 0:
         return forces
@@ -95,17 +97,12 @@ def compute_forces_from_pairs(pos, pairs, eps=EPS, sigma=SIGMA, cutoff=CUTOFF,
     within = r <= cutoff
     if not np.any(within):
         return forces
+        
     pairs, d, r = pairs[within], d[within], r[within]
     r = np.clip(r, 1e-3, None)
 
-    if np.isscalar(sigma):
-        sigma_pair = sigma
-    else:
-        sigma = np.asarray(sigma)
-        sigma_pair = 0.5 * (sigma[pairs[:, 0]] + sigma[pairs[:, 1]])
-
-    sr_m = (sigma_pair / r) ** m_exp
-    sr_n = (sigma_pair / r) ** n_exp
+    sr_m = (sigma / r) ** m_exp
+    sr_n = (sigma / r) ** n_exp
     fmag = (_LJ_C * eps / r) * (n_exp * sr_n - m_exp * sr_m)
     fmag = f_max * np.tanh(fmag / f_max)
     fvec = (fmag / r)[:, None] * d
@@ -113,14 +110,6 @@ def compute_forces_from_pairs(pos, pairs, eps=EPS, sigma=SIGMA, cutoff=CUTOFF,
     np.add.at(forces, pairs[:, 0], fvec)
     np.add.at(forces, pairs[:, 1], -fvec)
     return forces
-
-
-def compute_forces(pos, eps=EPS, sigma=SIGMA, cutoff=CUTOFF, n_exp=N_EXP, m_exp=M_EXP, f_max=F_MAX):
-    tree = cKDTree(pos)
-    pairs = tree.query_pairs(r=cutoff, output_type="ndarray")
-    return compute_forces_from_pairs(pos, pairs, eps=eps, sigma=sigma, cutoff=cutoff,
-                                      n_exp=n_exp, m_exp=m_exp, f_max=f_max)
-
 
 def build_neighbor_pairs_grid(pos, r_search):
     n = len(pos)
@@ -140,67 +129,73 @@ def build_neighbor_pairs_grid(pos, r_search):
     end_idx = np.append(start_idx[1:], n)
     cell_range = {int(cid): (int(s), int(e)) for cid, s, e in zip(unique_ids, start_idx, end_idx)}
 
+    # Relative offsets that guarantee ncid > cid without requiring an 'if'
+    # Forward neighbor cells: (0,1), (1,-1), (1,0), (1,1)
+    OFFSETS = ((0, 1), (1, -1), (1, 0), (1, 1))
+
     pairs_i, pairs_j = [], []
     for cid, (s, e) in cell_range.items():
         idx_here = order[s:e]
-        cx, cy = divmod(cid, ny_cells)
 
+        # 1. Intra-cell (pairs within the same cell)
         if len(idx_here) > 1:
             ii, jj = np.triu_indices(len(idx_here), k=1)
             pairs_i.append(idx_here[ii])
             pairs_j.append(idx_here[jj])
 
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                if dx == 0 and dy == 0:
-                    continue
-                ncx, ncy = cx + dx, cy + dy
-                if ncx < 0 or ncy < 0 or ncy >= ny_cells:
-                    continue
+        # 2. Inter-cell (single loop instead of 3 nested loops)
+        cx, cy = divmod(cid, ny_cells)
+        for dx, dy in OFFSETS:
+            ncx, ncy = cx + dx, cy + dy
+            if 0 <= ncy < ny_cells and ncx >= 0:
                 ncid = ncx * ny_cells + ncy
-                if ncid <= cid or ncid not in cell_range:
-                    continue
-                ns, ne = cell_range[ncid]
-                idx_other = order[ns:ne]
-                ii, jj = np.meshgrid(idx_here, idx_other, indexing="ij")
-                pairs_i.append(ii.ravel())
-                pairs_j.append(jj.ravel())
+                if ncid in cell_range:
+                    ns, ne = cell_range[ncid]
+                    idx_other = order[ns:ne]
+                    ii, jj = np.meshgrid(idx_here, idx_other, indexing="ij")
+                    pairs_i.append(ii.ravel())
+                    pairs_j.append(jj.ravel())
 
     if not pairs_i:
         return np.zeros((0, 2), dtype=int)
     return np.stack([np.concatenate(pairs_i), np.concatenate(pairs_j)], axis=1)
 
-
-def build_verlet_list(pos, cutoff=CUTOFF, skin=0.25 * A):
+def build_verlet_list(pos, cutoff=CUTOFF, skin=VERLET_SKIN):
     r_verlet = cutoff + skin
     candidates = build_neighbor_pairs_grid(pos, r_verlet)
     if len(candidates) == 0:
         return candidates
+    
+    # Vectorized computation of squared distances (avoids np.sqrt / linalg.norm before filtering)
     d = pos[candidates[:, 0]] - pos[candidates[:, 1]]
-    r = np.linalg.norm(d, axis=1)
-    return candidates[r <= r_verlet]
+    r2 = np.einsum('ij,ij->i', d, d)  # Dot product faster than sum(d**2, axis=1)
+    
+    return candidates[r2 <= (r_verlet ** 2)]
 
-
-def verlet_step(pos, vel, forces, dt, mass=MASS, fixed_mask=None,
-                 eps=EPS, sigma=SIGMA, cutoff=CUTOFF, gamma=0.0, f_max=F_MAX,
-                 force_fn=None):
-    if force_fn is None:
-        force_fn = lambda p: compute_forces(p, eps=eps, sigma=sigma, cutoff=cutoff, f_max=f_max)
-
+def verlet_step(pos, vel, forces, dt, pairs, mass=MASS, fixed_mask=None, gamma=0.0):
+    """
+    Advances position and velocity using the Velocity Verlet algorithm combined
+    with a semi-implicit friction scheme for background damping.
+    """
     if fixed_mask is None:
         fixed_mask = np.zeros(len(pos), dtype=bool)
     free = ~fixed_mask
 
+    # Acceleration at time t (including damping force)
     accel = forces / mass - gamma * vel / mass
+
+    # Position update: r(t + dt) = r(t) + v(t)*dt + 0.5*a(t)*dt^2
     new_pos = pos.copy()
     new_pos[free] = pos[free] + vel[free] * dt + 0.5 * accel[free] * dt ** 2
 
-    new_forces = force_fn(new_pos)
+    # Compute forces at the new positions r(t + dt)
+    new_forces = compute_forces_from_pairs(new_pos, pairs)
 
+    # Velocity update with semi-implicit friction handling
     new_vel = vel.copy()
-    v_meio = vel[free] + 0.5 * dt * accel[free]
+    v_half = vel[free] + 0.5 * dt * accel[free]
     denom = 1.0 + 0.5 * dt * gamma / mass
-    new_vel[free] = (v_meio + 0.5 * dt * new_forces[free] / mass) / denom
+    new_vel[free] = (v_half + 0.5 * dt * new_forces[free] / mass) / denom
 
     return new_pos, new_vel, new_forces
 
@@ -221,34 +216,10 @@ def rescale_velocities(vel, fixed_mask, target_ke_per_particle, mass=MASS):
     return new_vel
 
 
-BOND_CUTOFF = 1.3 * A  # separates first layer (r~A) from second neighbours (r~1.73*A)
+BOND_CUTOFF = 1.3 * A
 
 
 def compute_psi6(pos, pairs, bond_cutoff=BOND_CUTOFF):
-    """
-    6-fold orientational order parameter, |psi6|, for each
-    particle — the classic measure of "how hexagonal" the local
-    neighborhood is in a 2D triangular lattice. Close to 1 = perfectly
-    hexagonal environment; drops near dislocations and grain boundaries.
-
-        psi6(j) = (1/N_j) * sum_k exp(i * 6 * theta_jk)
-
-    where the sum is over the FIRST-SHELL neighbors k of j, and
-    theta_jk is the angle of the j-k bond.
-
-    Reuses already calculated pairs (e.g., the Verlet list used
-    for force calculations) instead of rebuilding the neighborhood
-    from scratch — it simply filters by actual distance <= bond_cutoff,
-    which is tighter than the force cutoff (capturing only the 1st
-    shell, not everyone within the potential's range).
-
-    Implementation detail: for a pair (i,j), the bond angle
-    viewed from i is theta, and viewed from j is theta+pi. Since
-    exp(i*6*(theta+pi)) == exp(i*6*theta) (6*pi is a multiple of 2*pi),
-    the same complex contribution enters the sum for both sides of
-    the pair — there is no need to calculate the angle twice.
-
-    """
     n = len(pos)
     if len(pairs) == 0:
         return np.zeros(n)
@@ -275,50 +246,16 @@ def compute_psi6(pos, pairs, bond_cutoff=BOND_CUTOFF):
     psi6[has_neighbors] = np.abs(psi6_sum[has_neighbors] / counts[has_neighbors])
     return psi6
 
-"""-----------------------------------
 
-SECOND BLOCK - bubble raft simulator
-
---------------------------------------"""
-
-DT = 0.02                           # time step (dimensionless)
-STEPS_PER_FRAME = 4                 # calculated steps between each frame redraw
-N_RESCALE = 20                      # steps between velocity rescaling
-TARGET_KE_PER_PARTICLE = 0.02       # target kinetic energy (temperature)
-GAMMA_FRICTION = 2.0                # internal friction factor
-
-VERLET_SKIN = 0.5 * A               # skin distance above cutoff to build Verlet's list
-VERLET_REBUILD_INTERVAL = 200       # steps before rebuilds the Verlet's list for one-by-one
-
-BUBBLE_RADIUS = 0.5 * A             # visual bubble radius
-
-WALL_SPACING = A / 3                # distance between point in the walls
-WALL_PAD = A / 3                    # distance between walls and box frame
-
-_rng = np.random.default_rng(42)
-
-N_TARGET_DEFAULT = 550              # default number of bubbles for one-by-one
-SPAWN_INTERVAL = 15                 # steps between spawn of new bubble
-
-BIRTH_JITTER = 0.0005 * A           # jitter to oscilate point of birth around the calculated centroid
-
-TRIANGLE_TOLERANCE = 0.20           # tollerance regarding the sides of an equilateral triangle
-MAX_TRIANGLE_ATTEMPTS = 50          # mas attempts to find an acceptable triangle of 3 neighbors
-
-N_BUBBLES_DEFAULT = 4000            # default number of bubbles for all-at-once
-MIN_SEPARATION = 0.05 * A           # minimum distance for spawn a new bubble
-AREA_FACTOR = 1.0                          # final occupancy factor regarding a perfect lattice
-VERLET_REBUILD_INTERVAL_ALL_AT_ONCE = 5    # steps before rebuilds the Verlet's list for all-at-once
-
-RELAX_STEPS = 1000                         # default relaxation steps
-COMPRESS_VELOCITY_DEFAULT = 0.01 * A       # velocity of the moving wall in units of A per step
-VERLET_REBUILD_INTERVAL_COMPRESSION = 10   # steps before rebuilds the Verlet's list for compression
-
+# =============================================================================
+# 3. SIMULATION STATE & HELPER FUNCTIONS
+# =============================================================================
 
 def box_side(n_target, area_factor=1.0):
     hex_area_per_bubble = (np.sqrt(3) / 2) * A ** 2
     box_area = n_target * hex_area_per_bubble * area_factor
     return np.sqrt(box_area)
+
 
 def build_walls(box_side, spacing=WALL_SPACING, pad=WALL_PAD):
     lo, hi = -pad, box_side + pad
@@ -337,8 +274,6 @@ def build_walls(box_side, spacing=WALL_SPACING, pad=WALL_PAD):
         "bottom": np.array(bottom), "top": np.array(top),
         "left": np.array(left), "right": np.array(right),
     }
-
-WALL_SIDE_ORDER = ("bottom", "top", "left", "right")
 
 def walls_dict_to_array(walls):
     return np.vstack([walls[name] for name in WALL_SIDE_ORDER])
@@ -375,28 +310,38 @@ def make_state(wall_pos, mobile_pos=None, rebuild_interval=VERLET_REBUILD_INTERV
         "wall_sides": wall_side_ranges_dict or {},
     }
 
-
 def physics_substep(state):
-    if len(state["pos"]) > state["n_wall"]:
-        if state["steps_since_rebuild"] >= state["rebuild_interval"]:
-            state["verlet_pairs"] = build_verlet_list(state["pos"], cutoff=CUTOFF, skin=VERLET_SKIN)
-            state["steps_since_rebuild"] = 0
-        pairs = state["verlet_pairs"]
+    """
+    Executes a single physics integration step.
+    Optimized for minimal loop overhead and fast state transitions.
+    """
+    # Early exit if there are no mobile particles to integrate
+    if len(state["pos"]) <= state["n_wall"]:
+        state["step_count"] += 1
+        return
 
-        def force_fn(p, pairs=pairs):
-            return compute_forces_from_pairs(p, pairs, sigma=SIGMA)
-
-        forces = force_fn(state["pos"])
-        state["pos"], state["vel"], _ = verlet_step(
-            state["pos"], state["vel"], forces, DT,
-            fixed_mask=state["fixed_mask"], gamma=GAMMA_FRICTION, force_fn=force_fn)
-        state["steps_since_rebuild"] += 1
-
+    # Conditional reconstruction of the Verlet neighbor list
+    if state["steps_since_rebuild"] >= state["rebuild_interval"]:
+        state["verlet_pairs"] = build_verlet_list(state["pos"], cutoff=CUTOFF, skin=VERLET_SKIN)
+        state["steps_since_rebuild"] = 0
+    
+    pairs = state["verlet_pairs"]
+    
+    # 1. Compute forces based on neighbor pairs
+    forces = compute_forces_from_pairs(state["pos"], pairs)
+    
+    # 2. Integration step via Verlet algorithm
+    state["pos"], state["vel"], _ = verlet_step(
+        state["pos"], state["vel"], forces, DT, pairs,
+        fixed_mask=state["fixed_mask"], gamma=GAMMA_FRICTION
+    )
+    
+    state["steps_since_rebuild"] += 1
     state["step_count"] += 1
 
-    if len(state["pos"]) > state["n_wall"] and state["step_count"] % N_RESCALE == 0:
+    # Velocity rescaling applied strictly at designated intervals
+    if state["step_count"] % N_RESCALE == 0:
         state["vel"] = rescale_velocities(state["vel"], state["fixed_mask"], TARGET_KE_PER_PARTICLE)
-
 
 def add_particle_to_verlet_list(verlet_pairs, pos_all, new_idx, cutoff, skin):
     d = np.linalg.norm(pos_all - pos_all[new_idx], axis=1)
@@ -408,8 +353,53 @@ def add_particle_to_verlet_list(verlet_pairs, pos_all, new_idx, cutoff, skin):
     new_pairs = np.stack([np.full(len(others), new_idx), others], axis=1)
     return np.vstack([verlet_pairs, new_pairs]) if len(verlet_pairs) else new_pairs
 
+def update_simulation_protocol(state, protocol, n_target, relax_steps, compress_velocity):
+    """
+    Manages macroscopic simulation state transitions and wall boundary protocols.
+    Executed once per animation frame to ensure consistent wall compression speeds.
+    """
+    n_mobile = len(state["pos"]) - state["n_wall"]
+    phase = protocol["phase"]
+
+    if phase == "generating":
+        if n_mobile == n_target:
+            protocol["phase"] = "relax before box opening"
+            protocol["generated_at"] = state["step_count"]
+
+    elif phase == "relax before box opening":
+        if (state["step_count"] - protocol["generated_at"] > relax_steps) and ("top" in state["wall_sides"]):
+            remove_wall_sides(state, ["top", "bottom"])
+            protocol["phase"] = "relax after box opening"
+            protocol["wall_removed_at"] = state["step_count"]
+
+    elif phase == "relax after box opening":
+        if state["step_count"] - protocol["wall_removed_at"] > relax_steps:
+            protocol["phase"] = "compressing"
+            state["rebuild_interval"] = VERLET_REBUILD_INTERVAL_COMPRESSION
+            
+            # O(1) determination of compression target using first particle x-coord
+            left_start = state["wall_sides"]["left"][0]
+            right_start = state["wall_sides"]["right"][0]
+            left_x = state["pos"][left_start, 0]
+            right_x = state["pos"][right_start, 0]
+            protocol["target_x"] = 0.5 * (left_x + right_x)
+
+    elif phase == "compressing":
+        right_start = state["wall_sides"]["right"][0]
+        right_x = state["pos"][right_start, 0]
+        
+        if right_x <= protocol["target_x"]:
+            protocol["phase"] = "stop"
+        else:
+            # Move wall once per frame at original rate
+            move_wall_side(state, "right", -compress_velocity, 0.0)
+
 
 def remove_wall_sides(state, side_names):
+    """
+    Removes specified wall boundaries and immediately rebuilds neighbor lists 
+    to prevent index mismatches and spurious forces.
+    """
     remove_ranges = [state["wall_sides"][name] for name in side_names]
     keep_mask = np.ones(len(state["pos"]), dtype=bool)
     for start, end in remove_ranges:
@@ -428,21 +418,21 @@ def remove_wall_sides(state, side_names):
 
     n_removed_total = sum(end - start for start, end in remove_ranges)
 
+    # Slice state arrays
     state["pos"] = state["pos"][keep_mask]
     state["vel"] = state["vel"][keep_mask]
     state["fixed_mask"] = state["fixed_mask"][keep_mask]
     state["n_wall"] -= n_removed_total
     state["wall_sides"] = new_wall_sides
 
-    state["verlet_pairs"] = np.zeros((0, 2), dtype=int)
-    state["steps_since_rebuild"] = 10**9
-
+    # Immediate rebuild to synchronize particle indices after wall removal
+    state["verlet_pairs"] = build_verlet_list(state["pos"], cutoff=CUTOFF, skin=VERLET_SKIN)
+    state["steps_since_rebuild"] = 0
 
 def move_wall_side(state, side_name, dx, dy):
     start, end = state["wall_sides"][side_name]
     state["pos"][start:end, 0] += dx
     state["pos"][start:end, 1] += dy
-
 
 def spawn_bubble(state, birth_point, rng):
     jittered_point = birth_point + rng.normal(scale=BIRTH_JITTER, size=2)
@@ -561,6 +551,10 @@ def step_all_at_once(state, extra):
     physics_substep(state)
 
 
+# =============================================================================
+# 4. CLI & MAIN
+# =============================================================================
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Bragg-Nye bubble raft simulator",
@@ -572,11 +566,11 @@ def parse_args():
     parser.add_argument(
         "--n-target", type=int, default=None,
         help="How many bubbles (default: %(default)s if not set -- "
-            f"{N_TARGET_DEFAULT} for one-by-one mode, {N_BUBBLES_DEFAULT} for all-at-once mode)")
+             f"{N_TARGET_DEFAULT} for one-by-one mode, {N_BUBBLES_DEFAULT} for all-at-once mode)")
     parser.add_argument(
         "--relax-steps", type=int, default=None,
         help="Relaxation steps (default: %(default)s if not set -- "
-                f"{RELAX_STEPS} relaxation steps.")
+             f"{RELAX_STEPS} relaxation steps.)")
     parser.add_argument(
         "--compress-velocity", type=float, default=None,
         help="Wall velocity, in units of A per step "
@@ -636,50 +630,34 @@ def main():
     fig.canvas.mpl_connect("resize_event", on_resize)
 
     def update(frame):
+        # 1. Advance physics integration over multiple substeps
         for _ in range(STEPS_PER_FRAME):
             step_fn(state, extra)
 
+        # 2. Update macroscopic simulation protocol once per frame
+        update_simulation_protocol(state, protocol, n_target, relax_steps, compress_velocity)
+
         mobile_pos = state["pos"][state["n_wall"]:]
+        n_mobile = len(mobile_pos)
 
-        if protocol["phase"] == "generating":
-            if len(mobile_pos) == n_target:
-                protocol["phase"] = "relax before box opening"
-                protocol["generated_at"] = state["step_count"]
+        # 3. Optimized visual rendering updates
+        wall_scatter.set_offsets(state["pos"][:state["n_wall"]])
 
-        elif protocol["phase"] == "relax before box opening":
-            if state["step_count"] - protocol["generated_at"] > relax_steps and "top" in state["wall_sides"]:
-                remove_wall_sides(state, ["top", "bottom"])
-                protocol["phase"] = "relax after box opening"
-                protocol["wall_removed_at"] = state["step_count"]
+        if n_mobile > 0:
+            mobile_scatter.set_offsets(mobile_pos)
+            
+            # Subsample psi6 calculation to reduce trigonometric CPU overhead
+            if frame % STEPS_PER_FRAME == 0:
+                psi6 = compute_psi6(state["pos"], state["verlet_pairs"])
+                mobile_scatter.set_array(psi6[state["n_wall"]:])
+            
+            # Avoid re-allocating marker sizes array unless bubble count changes
+            if len(mobile_scatter.get_sizes()) != n_mobile:
+                mobile_scatter.set_sizes(np.full(n_mobile, marker_size["value"]))
+        else:
+            mobile_scatter.set_offsets(np.zeros((0, 2)))
 
-        elif protocol["phase"] == "relax after box opening":
-            if state["step_count"] - protocol["wall_removed_at"] > relax_steps:
-                protocol["phase"] = "compressing"
-                state["rebuild_interval"] = VERLET_REBUILD_INTERVAL_COMPRESSION
-                left_x = state["pos"][slice(*state["wall_sides"]["left"]), 0].mean()
-                right_x = state["pos"][slice(*state["wall_sides"]["right"]), 0].mean()
-                protocol["target_x"] = (left_x + right_x) / 2
-
-        elif protocol["phase"] == "compressing":
-            right_x = state["pos"][slice(*state["wall_sides"]["right"]), 0].mean()
-            if right_x <= protocol["target_x"]:
-                protocol["phase"] = "stop"
-            else:
-                move_wall_side(state, "right", -compress_velocity, 0.0)
-
-        wall_pos_agora = state["pos"][:state["n_wall"]]
-        wall_scatter.set_offsets(wall_pos_agora)
-        wall_scatter.set_sizes(np.full(state["n_wall"], marker_size["value"]))
-
-        mobile_scatter.set_offsets(mobile_pos if len(mobile_pos) else np.zeros((0, 2)))
-        if len(mobile_pos) > 0:
-            mobile_scatter.set_sizes(np.full(len(mobile_pos), marker_size["value"]))
-
-        if len(mobile_pos) > 0:
-            psi6 = compute_psi6(state["pos"], state["verlet_pairs"])
-            mobile_scatter.set_array(psi6[state["n_wall"]:])
-
-        title.set_text(title_fmt(len(mobile_pos)) + f" (step {state['step_count']}, phase: {protocol['phase']})")
+        title.set_text(title_fmt(n_mobile) + f" (step {state['step_count']}, phase: {protocol['phase']})")
         return mobile_scatter, wall_scatter, title
 
     anim = animation.FuncAnimation(fig, update, frames=4000, interval=20, blit=False)

@@ -3,7 +3,7 @@ This repository is a collection of python scripts used for teaching materials sc
 
 ### Examples
 
-https://github.com/user-attachments/assets/8d055212-670b-4e12-a0c6-9aaad412b218
+https://github.com/user-attachments/assets/a70a9286-bbb0-4738-82f8-665c3f533c97
 
 https://github.com/user-attachments/assets/e883cbdd-e5cc-4402-ae5b-0bbced25454d
 

@@ -22,6 +22,7 @@ Acknowledgements:
 The main script was entirely developed after many interactions with Claude (Anthropic).
 Final code refactored with performance and structural optimization support from Gemini AI (Google).
 
+July 2026
 """
 
 import argparse

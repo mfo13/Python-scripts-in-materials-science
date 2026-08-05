@@ -21,6 +21,7 @@ Packages needed: numpy, scipy, argparse, matplotlib
 Acknowledgements:
 The main script was entirely developed after many interactions with Claude (Anthropic).
 Final code refactored with performance and structural optimization support from Gemini AI (Google).
+
 """
 
 import argparse

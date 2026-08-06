@@ -54,7 +54,7 @@ STEPS_PER_FRAME = 2
 
 # Particle parameters (Zener Pinning)
 PARTICLE_FRACTION = 0.10  # fraction of boundary pixels converted to particles
-PARTICLE_MOBILITY = 0.01  # fraction of matrix mobility (D_particle << D_matrix)
+PARTICLE_MOBILITY = 0.05 # fraction of matrix mobility (D_particle << D_matrix)
 
 # Activation energy
 Q_ENERGY = 3200.0
@@ -68,65 +68,66 @@ T_INIT = (T_MAX + T_MIN) / 2
 particles_enabled = False
 particles_added = False
 
-# Relative neighbor offsets (Moore neighborhood: top, bottom, left, right, top-left, top-right, bottom-left, bottom-right)
-NEIGHBOR_OFFSETS = [
-    (-1, 0),  # 0: Top
-    (1, 0),   # 1: Bottom
-    (0, -1),  # 2: Left
-    (0, 1),   # 3: Right
-    (-1, -1), # 4: Top-Left
-    (-1, 1),  # 5: Top-Right
-    (1, -1),  # 6: Bottom-Left
-    (1, 1)    # 7: Bottom-Right
-]
-
 # ==========================================
 # FUNCTIONS
 # ==========================================
 
 def initialize_grains(grid_size, num_seeds):
-    """Initializes the grid with random seeds (IDs from 1 to num_seeds)."""
+    """
+    Initializes the grid with unique random seeds (IDs from 1 to num_seeds)
+    without replacement, ensuring exact seed count without collisions.
+    """
     grid = np.zeros((grid_size, grid_size), dtype=int)
-    for i in range(1, num_seeds + 1):
-        x, y = np.random.randint(0, grid_size, size=2)
-        grid[x, y] = i
+    
+    # Select unique flat indices across the grid to avoid seed collisions
+    total_pixels = grid_size * grid_size
+    chosen_indices = np.random.choice(total_pixels, size=num_seeds, replace=False)
+    
+    # Assign grain IDs sequentially to the selected unique locations
+    grid.flat[chosen_indices] = np.arange(1, num_seeds + 1)
 
     return grid
 
 def get_neighbors(grid):
-    """Returns 8 Moore neighbors with periodic boundary conditions."""
-    top    = np.roll(grid, -1, axis=0)
-    bottom = np.roll(grid,  1, axis=0)
-    left   = np.roll(grid, -1, axis=1)
-    right  = np.roll(grid,  1, axis=1)
-    top_left     = np.roll(top, -1, axis=1)
-    top_right    = np.roll(top,  1, axis=1)
-    bottom_left  = np.roll(bottom, -1, axis=1)
-    bottom_right = np.roll(bottom,  1, axis=1)
+    """
+    Returns an 8-neighbor 3D numpy array of shape (8, N, N) with periodic 
+    boundary conditions using np.pad with wrap mode. Centralizes padded slicing.
+    """
+    padded = np.pad(grid, pad_width=1, mode='wrap')
+    return np.stack([
+        padded[:-2, 1:-1],  # 0: Top
+        padded[2:,  1:-1],  # 1: Bottom
+        padded[1:-1, :-2],  # 2: Left
+        padded[1:-1, 2:],   # 3: Right
+        padded[:-2, :-2],   # 4: Top-Left
+        padded[:-2, 2:],    # 5: Top-Right
+        padded[2:,  :-2],   # 6: Bottom-Left
+        padded[2:,  2:]     # 7: Bottom-Right
+    ])
 
-    return [top, bottom, left, right, top_left, top_right, bottom_left, bottom_right]
-
-def calculate_local_energy(grid, neighbors):
-    """Calculates boundary energy E for each cell (number of mismatching neighbors)."""
-    energy = np.zeros_like(grid, dtype=int)
-    for neigh in neighbors:
-        energy += (grid != neigh)
-
-    return energy
+def calculate_local_energy(grid):
+    """
+    Calculates boundary energy E for each cell (number of mismatching neighbors, 0 to 8)
+    by stacking neighbor slices and performing a vectorized sum along axis 0.
+    """
+    neighbors_stack = get_neighbors(grid)
+    
+    # Broadcast comparison (grid vs all 8 slices) and sum True flags along axis 0
+    return np.sum(grid != neighbors_stack, axis=0)
 
 def scatter_particles_on_boundaries(grid, fraction):
     """
     Scatters particles (ID = -1) ONLY along grain boundaries (where local energy > 0).
     Simulates preferential boundary precipitation.
     """
-    neighbors = get_neighbors(grid)
-    boundary_energy = calculate_local_energy(grid, neighbors)
+    # Calculate local energy directly using the optimized 2D padded slicing
+    boundary_energy = calculate_local_energy(grid)
     
-    boundary_mask = (boundary_energy > 0)
-    boundary_indices = np.flatnonzero(boundary_mask)
+    # Identify indices corresponding to grain boundaries
+    boundary_indices = np.flatnonzero(boundary_energy > 0)
     
     num_particles = int(len(boundary_indices) * fraction)
-    #print("Initial particles scattered:", num_particles) # debug
+    print("Initial particles scattered:", num_particles) # debug
     if num_particles > 0:
         chosen_indices = np.random.choice(boundary_indices, size=num_particles, replace=False)
         grid.flat[chosen_indices] = -1
@@ -135,23 +136,30 @@ def scatter_particles_on_boundaries(grid, fraction):
 
 def remove_particles_from_grid(grid):
     """
-    Dissolves particles (-1) by replacing them with the most frequent neighboring grain ID.
-    Simulates dissolution of second-phase particles back into the matrix.
+    Dissolves particles (-1) by replacing them with the first valid neighboring
+    grain ID (> 0) using fully vectorized 3D array indexing (zero Python loops).
     """
     particle_mask = (grid == -1)
     if not np.any(particle_mask):
         return grid
 
     new_grid = grid.copy()
-    neighbors = get_neighbors(grid)
 
-    # For each particle pixel, pick a valid neighboring grain (> 0)
-    for neigh in neighbors:
-        valid_neigh = particle_mask & (neigh > 0)
-        new_grid[valid_neigh] = neigh[valid_neigh]
-        particle_mask = (new_grid == -1)
-        if not np.any(particle_mask):
-            break
+    neighbors_stack = get_neighbors(grid)
+
+    # Mask of valid grain IDs (> 0) across all 8 neighbors
+    valid_mask = (neighbors_stack > 0)
+
+    # Find the index of the first valid grain ID along axis 0
+    first_valid_idx = np.argmax(valid_mask, axis=0)
+
+    # Extract the grain ID corresponding to the first valid neighbor
+    # Advanced 3D indexing replaces all particle sites in a single operation
+    rows, cols = np.indices(grid.shape)
+    selected_grains = neighbors_stack[first_valid_idx, rows, cols]
+
+    # Assign selected grain IDs only to particle locations
+    new_grid[particle_mask] = selected_grains[particle_mask]
 
     return new_grid
 
@@ -162,22 +170,29 @@ def calculate_mobility_probability(T, Q=Q_ENERGY, R=8.314):
 def particle_swap_step(grid, mobility_prob):
     """
     Handles mobile particle (-1) dragging and Zener pinning using fully vectorized
-    NumPy operations. Ensures strict 1-to-1 pixel conservation without Python loops.
+    NumPy operations with sparse coordinate indexing for energy updates.
+    Ensures strict 1-to-1 pixel conservation without Python loops or global grid copies.
     """
     N = grid.shape[0]
-    neighbors = get_neighbors(grid)
     particle_mask = (grid == -1)
-    
+        
     if not np.any(particle_mask):
         return grid
 
-    # Identify boundary particles located at multi-grain interfaces
-    has_multiple_grains = np.zeros((N, N), dtype=bool)
-    for i in range(8):
-        for j in range(i + 1, 8):
-            g1 = neighbors[i]
-            g2 = neighbors[j]
-            has_multiple_grains |= ((g1 > 0) & (g2 > 0) & (g1 != g2))
+    neighbors_stack = get_neighbors(grid)
+
+    # --- FRONT 1: Fast Multi-Grain Boundary Detection ---
+    valid_grain_mask = (neighbors_stack > 0)
+    grain_count = np.sum(valid_grain_mask, axis=0)
+    
+    masked_grains = np.where(valid_grain_mask, neighbors_stack, -1)
+    max_grain = np.max(masked_grains, axis=0)
+    
+    masked_grains_for_min = np.where(valid_grain_mask, neighbors_stack, np.inf)
+    min_grain = np.min(masked_grains_for_min, axis=0)
+
+    has_multiple_grains = (grain_count >= 2) & (max_grain != min_grain)
+    # ----------------------------------------------------
 
     active_particles = particle_mask & has_multiple_grains
     random_draw = np.random.rand(N, N)
@@ -200,45 +215,68 @@ def particle_swap_step(grid, mobility_prob):
         if not np.any(swap_candidates):
             continue
 
-        neigh_k = neighbors[k]
-        # Target site must be a grain (> 0)
+        neigh_k = neighbors_stack[k]
         valid_swap = swap_candidates & (neigh_k > 0)
 
         if np.any(valid_swap):
-            curr_energy = calculate_local_energy(new_grid, neighbors)
+            # --- FRONT 2 OPTIMIZATION: Sparse Local Delta E Evaluation ---
+            # Get flat indices of candidate active particles (A) and target grain sites (B)
+            flat_indices_A = np.flatnonzero(valid_swap)
             
-            # Temporary evaluation grid
-            temp_grid = new_grid.copy()
-            temp_grid[valid_swap] = neigh_k[valid_swap]
+            shift_r, shift_c = shifts[k]
+            # Convert flat indices to 2D coordinates (rows, cols)
+            rows_A, cols_A = np.unravel_index(flat_indices_A, (N, N))
             
-            prop_energy = calculate_local_energy(temp_grid, get_neighbors(temp_grid))
-            delta_E = prop_energy - curr_energy
+            # Target B coordinates under periodic boundary conditions
+            rows_B = (rows_A + shift_r) % N
+            cols_B = (cols_A + shift_c) % N
+            flat_indices_B = np.ravel_multi_index((rows_B, cols_B), (N, N))
 
-            accept = valid_swap & (delta_E < 0)
+            # Current IDs at site A (-1) and site B (grain_id)
+            grain_ids_B = new_grid.flat[flat_indices_B]
+
+            # Extract 8 neighbors specifically for candidates A and B from stack
+            # Shape of stack_A / stack_B: (8, num_candidates)
+            stack_A = neighbors_stack[:, rows_A, cols_A]
+            stack_B = neighbors_stack[:, rows_B, cols_B]
+
+            # Calculate initial local boundary energy at sites A and B
+            # Energy = number of neighbors with a different ID
+            E_A_init = np.sum(stack_A != -1, axis=0)
+            E_B_init = np.sum(stack_B != grain_ids_B, axis=0)
+
+            # Proposed local energy after swapping values (A gets grain_id, B gets -1)
+            E_A_prop = np.sum(stack_A != grain_ids_B, axis=0)
+            E_B_prop = np.sum(stack_B != -1, axis=0)
+
+            delta_E_local = (E_A_prop + E_B_prop) - (E_A_init + E_B_init)
+
+            # Filter candidates where energy decreases (delta_E < 0)
+            accept_sparse = (delta_E_local < 0)
             
-            if np.any(accept):
-                shift_r, shift_c = shifts[k]
-                
-                # Check target values in shifted orientation (-shift_r, -shift_c)
-                # target_is_grain evaluates to a (500, 500) boolean array matching 'accept'
+            if np.any(accept_sparse):
+                # Map accepted sparse choices back to boolean mask for execution
+                accept_mask = np.zeros((N, N), dtype=bool)
+                accept_mask.flat[flat_indices_A[accept_sparse]] = True
+
+                # Target must currently hold a valid grain (> 0)
                 target_is_grain = np.roll(np.roll(new_grid > 0, -shift_r, axis=0), -shift_c, axis=1)
-                
-                # Safe swap only where target pixel is currently a grain (> 0)
-                safe_swap = accept & target_is_grain
-                
+                safe_swap = accept_mask & target_is_grain
+
                 if np.any(safe_swap):
-                    # Execute 2-way vectorized swap
+                    # Execute 2-way vectorized swap preserving 1-to-1 particle count
                     new_grid[safe_swap] = neigh_k[safe_swap]
                     
-                    # Shift particles (-1) to target positions
                     target_mask = np.roll(np.roll(safe_swap, shift_r, axis=0), shift_c, axis=1)
                     new_grid[target_mask] = -1
+            # -------------------------------------------------------------
 
     return new_grid
 
 def ca_growth_step(grid, mobility_prob):
     """
     Cellular Automata step handling space filling, particle swaps, and grain growth.
+    Fully vectorized and performance-optimized.
     """
     global particles_added, particles_enabled
     N = grid.shape[0]
@@ -264,28 +302,43 @@ def ca_growth_step(grid, mobility_prob):
     if particles_enabled and particles_added:
         new_grid = particle_swap_step(new_grid, mobility_prob)
 
-    # 4. Curvature-Driven Grain Boundary Migration
-    neighbors = get_neighbors(new_grid)
-    current_energy = calculate_local_energy(new_grid, neighbors)
+    # 4. Curvature-Driven Grain Boundary Migration (Optimized)
+    neighbors_arr = np.array(get_neighbors(new_grid))  # Shape: (8, N, N)
     
-    # Only grain boundary pixels (> 0) participate in migration
-    interface_mask = (current_energy > 0) & (new_grid > 0)
+    # Contagem rápida de energia atual
+    current_energy = np.sum(neighbors_arr != new_grid, axis=0)
+    
+    # Apenas contornos (> 0) com sorteio estocástico ativo
+    active_mask = (current_energy > 0) & (new_grid > 0) & (np.random.rand(N, N) < mobility_prob)
 
-    random_draw = np.random.rand(N, N)
-    active_mask = interface_mask & (random_draw < mobility_prob)
+    if not np.any(active_mask):
+        return new_grid
 
+    # Seleção do vizinho candidato sem usar np.indices (take_along_axis)
     candidate_dir = np.random.randint(0, 8, size=(N, N))
-    candidate_grid = np.zeros_like(new_grid)
-    for k in range(8):
-        candidate_grid[candidate_dir == k] = neighbors[k][candidate_dir == k]
+    candidate_grid = np.take_along_axis(neighbors_arr, candidate_dir[None, ...], axis=0)[0]
 
-    proposed_energy = calculate_local_energy(candidate_grid, neighbors)
-    delta_E = proposed_energy - current_energy
+    # Filtra candidatos válidos (evita propagar partículas -1 ou trocar ID nula)
+    valid_candidates = active_mask & (candidate_grid > 0)
 
-    # Strict protection: new_grid > 0 prevents overwriting particles (-1),
-    # candidate_grid > 0 prevents propagating particle IDs into grains.
-    accept_change = active_mask & (delta_E <= 0) & (candidate_grid > 0) & (new_grid > 0)
-    new_grid[accept_change] = candidate_grid[accept_change]
+    if not np.any(valid_candidates):
+        return new_grid
+
+    # Cálculo do delta_E APENAS para os pixels válidos (Sparse Evaluation)
+    # Extrai o subarray 2D (8, num_valid)
+    valid_neighbors = neighbors_arr[:, valid_candidates]
+    valid_proposed = candidate_grid[valid_candidates]
+    
+    E_init = current_energy[valid_candidates]
+    E_prop = np.sum(valid_neighbors != valid_proposed, axis=0)
+    
+    delta_E = E_prop - E_init
+
+    # Aplicação das trocas aceitas
+    accept_indices = valid_candidates.copy()
+    accept_indices[valid_candidates] = (delta_E <= 0)
+    
+    new_grid[accept_indices] = candidate_grid[accept_indices]
 
     return new_grid
 
@@ -330,12 +383,13 @@ grain_colors = ["#eefa48", "#fbd75d", "#f9b96a", "#f59a6f", "#ee7a75", "#df5c82"
 custom_gradient = LinearSegmentedColormap.from_list("zener_cmap", grain_colors)
 custom_gradient.set_under('#ffffff') # particle color
 
-img = ax1.imshow(grid, cmap=custom_gradient, interpolation='hamming', vmin=1, vmax=SEEDS)
+# Added animated=True for blit optimization and fast nearest interpolation
+img = ax1.imshow(grid, cmap=custom_gradient, interpolation='nearest', vmin=1, vmax=SEEDS, animated=True)
 ax1.set_title("Microstructure Evolution", fontsize=12)
 ax1.axis('off')
 
-# Kinetic curve panel
-line, = ax2.plot([], [], color='firebrick', lw=2)
+# Kinetic curve panel (Added animated=True)
+line, = ax2.plot([], [], color='firebrick', lw=2, animated=True)
 ax2.set_xlim(0, INITIAL_STEPS)
 ax2.set_ylim(0, SEEDS + 10)
 ax2.set_xlabel("Monte Carlo Steps (MCS)", fontsize=11)
@@ -354,22 +408,26 @@ def update(frame):
         current_frame += 1
         grid = ca_growth_step(grid, mobility_prob)
 
-    unique_ids = np.unique(grid)
-    active_grains = len(unique_ids[(unique_ids > 0)])
+    # Sample history data periodically instead of every single step
+    if current_frame % 2 == 0:
+        # Fast grain count using np.bincount instead of np.unique
+        positive_mask = grid[grid > 0]
+        active_grains = np.count_nonzero(np.bincount(positive_mask.ravel())) if positive_mask.size > 0 else 0
         
-    history_mcs.append(current_frame)
-    history_grains.append(active_grains)
+        history_mcs.append(current_frame)
+        history_grains.append(active_grains)
 
-    if current_frame >= ax2.get_xlim()[1]:
-        ax2.set_xlim(0, current_frame + 200)
-        ax2.figure.canvas.draw_idle()
+        # Redraw background only when expanding axis limit
+        if current_frame >= ax2.get_xlim()[1]:
+            ax2.set_xlim(0, current_frame + 200)
+            ax2.figure.canvas.draw_idle()
 
-    img.set_array(grid)
-    line.set_data(history_mcs, history_grains)
+        img.set_array(grid)
+        line.set_data(history_mcs, history_grains)
 
-    #if particles_added:
-    #    print("Current particle count:", np.sum(grid == -1)) # debug
-   
+        if particles_added:
+            print("Current particle count:", np.sum(grid == -1)) # debug
+
     return img, line
 
 # Controls Layout
@@ -397,13 +455,21 @@ def reset_simulation(event=None):
     particles_enabled = False
     btn_zener.label.set_text("Zener: OFF")
     btn_zener.color = 'lightgray'
+    
+    # Clear data arrays
     history_mcs.clear()
     history_grains.clear()
+    
+    # Reset grid and line data
     grid = initialize_grains(GRID_SIZE, SEEDS)
-    ax2.set_xlim(0, INITIAL_STEPS)
     line.set_data([], [])
     img.set_array(grid)
-    fig.canvas.draw_idle()
+    
+    # Reset X axis limits
+    ax2.set_xlim(0, INITIAL_STEPS)
+    
+    # Force immediate full redraw to flush blitting background cache
+    fig.canvas.draw()
 
 def toggle_zener(event=None):
     global particles_enabled, particles_added, grid
@@ -444,12 +510,12 @@ btn_zener.on_clicked(toggle_zener)
 slider_T.on_changed(update_temperature)
 fig.canvas.mpl_connect('key_press_event', on_key_press)
 
-# Animation execution
+# Animation execution (blit enabled and interval optimized)
 anim = animation.FuncAnimation(
     fig,
     update,
-    interval=20,
-    blit=False,
+    interval=1,
+    blit=True,
     repeat=True,
     cache_frame_data=False
 )

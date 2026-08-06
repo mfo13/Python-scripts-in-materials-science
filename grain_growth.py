@@ -37,7 +37,6 @@ r -> reset \n\
 z -> toggle Zener pinning \n\
 "
 
-
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,7 +53,7 @@ INITIAL_STEPS = 500
 STEPS_PER_FRAME = 2
 
 # Particle parameters (Zener Pinning)
-PARTICLE_FRACTION = 0.20  # fraction of boundary pixels converted to particles
+PARTICLE_FRACTION = 0.10  # fraction of boundary pixels converted to particles
 PARTICLE_MOBILITY = 0.01  # fraction of matrix mobility (D_particle << D_matrix)
 
 # Activation energy
@@ -68,6 +67,18 @@ T_INIT = (T_MAX + T_MIN) / 2
 # Global state trackers
 particles_enabled = False
 particles_added = False
+
+# Relative neighbor offsets (Moore neighborhood: top, bottom, left, right, top-left, top-right, bottom-left, bottom-right)
+NEIGHBOR_OFFSETS = [
+    (-1, 0),  # 0: Top
+    (1, 0),   # 1: Bottom
+    (0, -1),  # 2: Left
+    (0, 1),   # 3: Right
+    (-1, -1), # 4: Top-Left
+    (-1, 1),  # 5: Top-Right
+    (1, -1),  # 6: Bottom-Left
+    (1, 1)    # 7: Bottom-Right
+]
 
 # ==========================================
 # FUNCTIONS
@@ -115,6 +126,7 @@ def scatter_particles_on_boundaries(grid, fraction):
     boundary_indices = np.flatnonzero(boundary_mask)
     
     num_particles = int(len(boundary_indices) * fraction)
+    #print("Initial particles scattered:", num_particles) # debug
     if num_particles > 0:
         chosen_indices = np.random.choice(boundary_indices, size=num_particles, replace=False)
         grid.flat[chosen_indices] = -1
@@ -149,17 +161,17 @@ def calculate_mobility_probability(T, Q=Q_ENERGY, R=8.314):
 
 def particle_swap_step(grid, mobility_prob):
     """
-    Handles mobile particle (-1) dragging and Zener pinning.
-    Strict condition: Swaps occur ONLY if particle is at a grain-grain interface
-    and if energy strictly decreases (Delta_E < 0).
+    Handles mobile particle (-1) dragging and Zener pinning using fully vectorized
+    NumPy operations. Ensures strict 1-to-1 pixel conservation without Python loops.
     """
     N = grid.shape[0]
     neighbors = get_neighbors(grid)
     particle_mask = (grid == -1)
-
+    
     if not np.any(particle_mask):
         return grid
 
+    # Identify boundary particles located at multi-grain interfaces
     has_multiple_grains = np.zeros((N, N), dtype=bool)
     for i in range(8):
         for j in range(i + 1, 8):
@@ -168,7 +180,6 @@ def particle_swap_step(grid, mobility_prob):
             has_multiple_grains |= ((g1 > 0) & (g2 > 0) & (g1 != g2))
 
     active_particles = particle_mask & has_multiple_grains
-    
     random_draw = np.random.rand(N, N)
     active_particles &= (random_draw < (mobility_prob * PARTICLE_MOBILITY))
 
@@ -176,19 +187,27 @@ def particle_swap_step(grid, mobility_prob):
         return grid
 
     new_grid = grid.copy()
+
+    # Random movement directions for active particles
     candidate_dir = np.random.randint(0, 8, size=(N, N))
 
+    # Offsets for standard 8-neighbor directions (0 to 7)
+    shifts = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+    # Process each direction in vectorized batching
     for k in range(8):
         swap_candidates = active_particles & (candidate_dir == k)
         if not np.any(swap_candidates):
             continue
 
         neigh_k = neighbors[k]
+        # Target site must be a grain (> 0)
         valid_swap = swap_candidates & (neigh_k > 0)
 
         if np.any(valid_swap):
             curr_energy = calculate_local_energy(new_grid, neighbors)
             
+            # Temporary evaluation grid
             temp_grid = new_grid.copy()
             temp_grid[valid_swap] = neigh_k[valid_swap]
             
@@ -196,7 +215,24 @@ def particle_swap_step(grid, mobility_prob):
             delta_E = prop_energy - curr_energy
 
             accept = valid_swap & (delta_E < 0)
-            new_grid[accept] = neigh_k[accept]
+            
+            if np.any(accept):
+                shift_r, shift_c = shifts[k]
+                
+                # Check target values in shifted orientation (-shift_r, -shift_c)
+                # target_is_grain evaluates to a (500, 500) boolean array matching 'accept'
+                target_is_grain = np.roll(np.roll(new_grid > 0, -shift_r, axis=0), -shift_c, axis=1)
+                
+                # Safe swap only where target pixel is currently a grain (> 0)
+                safe_swap = accept & target_is_grain
+                
+                if np.any(safe_swap):
+                    # Execute 2-way vectorized swap
+                    new_grid[safe_swap] = neigh_k[safe_swap]
+                    
+                    # Shift particles (-1) to target positions
+                    target_mask = np.roll(np.roll(safe_swap, shift_r, axis=0), shift_c, axis=1)
+                    new_grid[target_mask] = -1
 
     return new_grid
 
@@ -231,6 +267,8 @@ def ca_growth_step(grid, mobility_prob):
     # 4. Curvature-Driven Grain Boundary Migration
     neighbors = get_neighbors(new_grid)
     current_energy = calculate_local_energy(new_grid, neighbors)
+    
+    # Only grain boundary pixels (> 0) participate in migration
     interface_mask = (current_energy > 0) & (new_grid > 0)
 
     random_draw = np.random.rand(N, N)
@@ -244,7 +282,9 @@ def ca_growth_step(grid, mobility_prob):
     proposed_energy = calculate_local_energy(candidate_grid, neighbors)
     delta_E = proposed_energy - current_energy
 
-    accept_change = active_mask & (delta_E <= 0) & (candidate_grid > 0)
+    # Strict protection: new_grid > 0 prevents overwriting particles (-1),
+    # candidate_grid > 0 prevents propagating particle IDs into grains.
+    accept_change = active_mask & (delta_E <= 0) & (candidate_grid > 0) & (new_grid > 0)
     new_grid[accept_change] = candidate_grid[accept_change]
 
     return new_grid
@@ -264,12 +304,11 @@ history_grains = []
 # INTERACTIVE ANIMATION & GUI SETUP
 # ==========================================
 
-# argparse to display help message and how to use
 def parse_args():
     parser = argparse.ArgumentParser(
         description=how_to_use,
         formatter_class=argparse.RawTextHelpFormatter
-        )
+    )
     return parser.parse_args()
 
 parse_args()
@@ -317,7 +356,7 @@ def update(frame):
 
     unique_ids = np.unique(grid)
     active_grains = len(unique_ids[(unique_ids > 0)])
-
+        
     history_mcs.append(current_frame)
     history_grains.append(active_grains)
 
@@ -328,6 +367,9 @@ def update(frame):
     img.set_array(grid)
     line.set_data(history_mcs, history_grains)
 
+    #if particles_added:
+    #    print("Current particle count:", np.sum(grid == -1)) # debug
+   
     return img, line
 
 # Controls Layout
@@ -395,7 +437,7 @@ def on_key_press(event):
     elif event.key == 'z':     # z key to toggle Zener pinning
         toggle_zener()
 
-# keyboard and canvas controls
+# Keyboard and canvas controls
 btn_pause.on_clicked(toggle_pause)
 btn_reset.on_clicked(reset_simulation)
 btn_zener.on_clicked(toggle_zener)

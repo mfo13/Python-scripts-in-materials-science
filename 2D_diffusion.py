@@ -244,7 +244,7 @@ def animate(i, ax, m0, m, titulo, D, dt, bc, bottom, right):
     """
     ax.clear()
     m0, m = timestep(m0, m, D, dt, bc, bottom, right)
-    ax.imshow(np.int_(np.round(m)))
+    ax.imshow(np.int_(np.round(m)), interpolation='none')
     ax.set_axis_off()
     ax.set_title(f"{titulo} - timestep: {i}")
     return ax
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     # Create the initial plot
     fig, ax = plt.subplots()
-    ax.imshow(np.int_(np.round(m)))
+    ax.imshow(np.int_(np.round(m)), interpolation='none')
     ax.set_axis_off()
     ax.set_title(f"{titulo} - timestep: 0")
 

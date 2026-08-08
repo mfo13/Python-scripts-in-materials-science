@@ -22,14 +22,8 @@ Developed after many interactions with Gemini AI (Google).
 August 2026
 """
 
-how_to_use = "\
+help_message = "\
 Grain Growth with Dynamic Zener Pinning \n\
-\n\
-How to use: \n\
-$ python grain_growth.py \n\
-\n\
-For help message: \n\
-$ python grain_growth.py -h [--help] \n\
 \n\
 Keyboard commands: \n\
 space -> pause/play \n\
@@ -45,7 +39,7 @@ from matplotlib.widgets import Button, Slider
 from matplotlib.colors import LinearSegmentedColormap
 
 # ==========================================
-# SIMULATION CONFIGURATION
+# SIMULATION CONFIGURATION (defaults)
 # ==========================================
 GRID_SIZE = 500
 SEEDS = 2000
@@ -58,11 +52,6 @@ PARTICLE_MOBILITY = 0.05 # fraction of matrix mobility (D_particle << D_matrix)
 
 # Activation energy
 Q_ENERGY = 3200.0
-
-# Temperatures
-T_MIN = -Q_ENERGY / 8.314 / np.log(0.1)
-T_MAX = -Q_ENERGY / 8.314 / np.log(0.8)
-T_INIT = (T_MAX + T_MIN) / 2
 
 # Global state trackers
 particles_enabled = False
@@ -127,7 +116,7 @@ def scatter_particles_on_boundaries(grid, fraction):
     boundary_indices = np.flatnonzero(boundary_energy > 0)
     
     num_particles = int(len(boundary_indices) * fraction)
-    print("Initial particles scattered:", num_particles) # debug
+    #print("Initial particles scattered:", num_particles) # debug
     if num_particles > 0:
         chosen_indices = np.random.choice(boundary_indices, size=num_particles, replace=False)
         grid.flat[chosen_indices] = -1
@@ -196,7 +185,7 @@ def particle_swap_step(grid, mobility_prob):
 
     active_particles = particle_mask & has_multiple_grains
     random_draw = np.random.rand(N, N)
-    active_particles &= (random_draw < (mobility_prob * PARTICLE_MOBILITY))
+    active_particles &= (random_draw < (mobility_prob * args.particle_mobility))
 
     if not np.any(active_particles):
         return grid
@@ -294,7 +283,7 @@ def ca_growth_step(grid, mobility_prob):
 
     # 2. Scatter particles if Zener pinning option is enabled
     if particles_enabled and not particles_added:
-        new_grid = scatter_particles_on_boundaries(new_grid, PARTICLE_FRACTION)
+        new_grid = scatter_particles_on_boundaries(new_grid, args.particle_fraction)
         particles_added = True
         return new_grid
 
@@ -305,27 +294,27 @@ def ca_growth_step(grid, mobility_prob):
     # 4. Curvature-Driven Grain Boundary Migration (Optimized)
     neighbors_arr = np.array(get_neighbors(new_grid))  # Shape: (8, N, N)
     
-    # Contagem rápida de energia atual
+    # Fast sum of the current energy
     current_energy = np.sum(neighbors_arr != new_grid, axis=0)
     
-    # Apenas contornos (> 0) com sorteio estocástico ativo
+    # Only contours (>0) with active probability
     active_mask = (current_energy > 0) & (new_grid > 0) & (np.random.rand(N, N) < mobility_prob)
 
     if not np.any(active_mask):
         return new_grid
 
-    # Seleção do vizinho candidato sem usar np.indices (take_along_axis)
+    # Selection of candidate neighbours without using np.indices (take_along_axis)
     candidate_dir = np.random.randint(0, 8, size=(N, N))
     candidate_grid = np.take_along_axis(neighbors_arr, candidate_dir[None, ...], axis=0)[0]
 
-    # Filtra candidatos válidos (evita propagar partículas -1 ou trocar ID nula)
+    # Filters valid candidates (avoids propagate -1 or swap null ID)
     valid_candidates = active_mask & (candidate_grid > 0)
 
     if not np.any(valid_candidates):
         return new_grid
 
-    # Cálculo do delta_E APENAS para os pixels válidos (Sparse Evaluation)
-    # Extrai o subarray 2D (8, num_valid)
+    # Calculates delta_E only for valid pixels (Sparse Evaluation)
+    # 2D subarray extraction (8, num_valid)
     valid_neighbors = neighbors_arr[:, valid_candidates]
     valid_proposed = candidate_grid[valid_candidates]
     
@@ -334,7 +323,7 @@ def ca_growth_step(grid, mobility_prob):
     
     delta_E = E_prop - E_init
 
-    # Aplicação das trocas aceitas
+    # Implementation of valid swaps
     accept_indices = valid_candidates.copy()
     accept_indices[valid_candidates] = (delta_E <= 0)
     
@@ -343,28 +332,33 @@ def ca_growth_step(grid, mobility_prob):
     return new_grid
 
 # ==========================================
-# INITIALIZATION
-# ==========================================
-current_T = T_INIT
-mobility_prob = calculate_mobility_probability(T=current_T, Q=Q_ENERGY)
-is_running = True
-current_frame = 0
-grid = initialize_grains(GRID_SIZE, SEEDS)
-history_mcs = []
-history_grains = []
-
-# ==========================================
 # INTERACTIVE ANIMATION & GUI SETUP
 # ==========================================
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description=how_to_use,
+        description = help_message,
         formatter_class=argparse.RawTextHelpFormatter
     )
+    parser.add_argument("-s", "--seeds", type=int, default=SEEDS, help="Number of initial grains (default: %(default)s)")
+    parser.add_argument("-f", "--particle-fraction", type=float, default=PARTICLE_FRACTION, help="Particle fraction in the contours (default: %(default)s)")
+    parser.add_argument("-m", "--particle-mobility", type=float, default=PARTICLE_MOBILITY, help="Particle mobility (default: %(default)s)")
     return parser.parse_args()
 
-parse_args()
+args = parse_args()
+
+# INITIALIZATION
+# ----------------
+T_MIN = - Q_ENERGY / 8.314 / np.log(0.1)
+T_MAX = - Q_ENERGY / 8.314 / np.log(0.8)
+T_INIT = (T_MAX + T_MIN) / 2
+current_T = T_INIT
+mobility_prob = calculate_mobility_probability(T=current_T, Q=Q_ENERGY)
+is_running = True
+current_frame = 0
+grid = initialize_grains(GRID_SIZE, args.seeds)
+history_mcs = []
+history_grains = []
     
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 7))
 plt.subplots_adjust(left=0.04, right=0.96, top=0.92, bottom=0.14, wspace=0.15)
@@ -384,14 +378,14 @@ custom_gradient = LinearSegmentedColormap.from_list("zener_cmap", grain_colors)
 custom_gradient.set_under('#ffffff') # particle color
 
 # Added animated=True for blit optimization and fast nearest interpolation
-img = ax1.imshow(grid, cmap=custom_gradient, interpolation='nearest', vmin=1, vmax=SEEDS, animated=True)
+img = ax1.imshow(grid, cmap=custom_gradient, interpolation='none', vmin=1, vmax=args.seeds, animated=True)
 ax1.set_title("Microstructure Evolution", fontsize=12)
 ax1.axis('off')
 
 # Kinetic curve panel (Added animated=True)
 line, = ax2.plot([], [], color='firebrick', lw=2, animated=True)
 ax2.set_xlim(0, INITIAL_STEPS)
-ax2.set_ylim(0, SEEDS + 10)
+ax2.set_ylim(0, args.seeds + 10)
 ax2.set_xlabel("Monte Carlo Steps (MCS)", fontsize=11)
 ax2.set_ylabel("Remaining Active Grains N(t)", fontsize=11)
 ax2.set_title("Grain Annihilation Curve", fontsize=12)
@@ -425,8 +419,8 @@ def update(frame):
         img.set_array(grid)
         line.set_data(history_mcs, history_grains)
 
-        if particles_added:
-            print("Current particle count:", np.sum(grid == -1)) # debug
+        #if particles_added:
+        #    print("Current particle count:", np.sum(grid == -1)) # debug
 
     return img, line
 
@@ -461,7 +455,7 @@ def reset_simulation(event=None):
     history_grains.clear()
     
     # Reset grid and line data
-    grid = initialize_grains(GRID_SIZE, SEEDS)
+    grid = initialize_grains(GRID_SIZE, args.seeds)
     line.set_data([], [])
     img.set_array(grid)
     

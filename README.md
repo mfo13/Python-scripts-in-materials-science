@@ -3,9 +3,13 @@ This repository is a collection of python scripts used for teaching materials sc
 
 ### Examples
 
+https://github.com/user-attachments/assets/87b49b34-1b98-41c2-8a1a-2d73ec91a6d8
+
 https://github.com/user-attachments/assets/8bcb5763-05d2-419b-a80e-377930e4cf77
 
 https://github.com/user-attachments/assets/e883cbdd-e5cc-4402-ae5b-0bbced25454d
+
+https://github.com/user-attachments/assets/ffaf8783-67c8-4fb6-ac56-7c664a4e6669
 
 https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/8cc0d377-a364-40cd-b716-3b697c52b41c
 
@@ -24,5 +28,3 @@ https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/36
 https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/ed196787-ebdc-4f16-a2b2-3734536378cc
 
 https://github.com/mfo13/Python-scripts-in-materials-science/assets/128325284/edf63159-ef41-4e74-8e36-6a9124113736
-
-https://github.com/user-attachments/assets/ffaf8783-67c8-4fb6-ac56-7c664a4e6669

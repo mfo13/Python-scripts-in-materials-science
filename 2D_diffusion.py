@@ -73,7 +73,7 @@ def load_image(image_path):
     """
     try:
         img = image.imread(image_path)
-        return np.float_(img)
+        return np.float64(img)
     except Exception as e:
         sys.exit(f"Error loading the image: {e}")
 

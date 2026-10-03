@@ -137,7 +137,7 @@ class PathInteractor:
         # we show the timestep factor
         self.timestepfactortext = self.ax.text(
             0.02, 0.95, 
-            'Timestep: ' + f"{self.timestepfactor:.5g}", 
+            'Timestep size: ' + f"{self.timestepfactor:.5g}", 
             fontsize=10, 
             color='darkorange', 
             wrap=True, 
@@ -264,15 +264,15 @@ class PathInteractor:
                  self.showverts = True
                  self.line.set_visible(True)
             self.timestepfactor = 1                         # set the timestep multiplier back to 1
-            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+            self.timestepfactortext.set_text('Timestep size: ' + f"{self.timestepfactor:.5g}")
 
         if event.key == '+':                # double the timestep multiplier
             self.timestepfactor *= 2
-            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+            self.timestepfactortext.set_text('Timestep size: ' + f"{self.timestepfactor:.5g}")
                                                 
         if event.key == '-':                # half the timestep multiplier
             self.timestepfactor *= 0.5
-            self.timestepfactortext.set_text('Timestep: ' + f"{self.timestepfactor:.5g}")
+            self.timestepfactortext.set_text('Timestep size: ' + f"{self.timestepfactor:.5g}")
                                        
         # toggle help visibility
         if event.key == 'h':
